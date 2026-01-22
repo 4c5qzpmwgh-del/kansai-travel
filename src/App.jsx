@@ -150,7 +150,7 @@ function App() {
         
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white' }}>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK Travel GJ Edition </h1>
           <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
         </div>
 
@@ -163,7 +163,7 @@ function App() {
             display: 'flex', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch'
           }}>
             <button onClick={() => setActiveTab('schedule')} style={tabStyle(activeTab === 'schedule')}>🗓 行程</button>
-            <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 預算</button>
+            <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 支出</button>
             <button onClick={() => setActiveTab('flights')} style={tabStyle(activeTab === 'flights')}>🛫 航班</button>
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
