@@ -15,12 +15,12 @@ for (let i = 0; i < 24; i++) {
   timeOptions.push(`${hour}:30`)
 }
 
-// --- 樣式設定 (Styles) ---
+// --- 樣式設定 ---
 const theme = {
   primary: '#0EA5E9', // 天空藍
-  bg: '#FFFFFF',      // 純白背景
-  text: '#1F2937',    // 深灰文字
+  white: '#FFFFFF',
   danger: '#EF4444',  // 紅色
+  text: '#111111',    // 極深黑
   shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
   radius: '12px'
 }
@@ -41,7 +41,6 @@ function App() {
 
   useEffect(() => {
     fetchData()
-    // 訂閱資料庫變更
     const sub1 = supabase.channel('plans-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => fetchData()).subscribe()
     const sub2 = supabase.channel('budget-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'budget' }, () => fetchData()).subscribe()
     return () => { supabase.removeChannel(sub1); supabase.removeChannel(sub2) }
@@ -65,13 +64,13 @@ function App() {
     if (!planInput) return
     await supabase.from('plans').insert([{ content: planInput, day: currentDay, time: timeInput }])
     setPlanInput('')
-    fetchData() // 強制刷新
+    fetchData()
   }
 
   async function deletePlan(id) {
     if (confirm('確定刪除此行程？')) {
       await supabase.from('plans').delete().eq('id', id)
-      fetchData() // 強制刷新
+      fetchData()
     }
   }
 
@@ -80,23 +79,36 @@ function App() {
     if (!budgetItem || !budgetAmount) return
     await supabase.from('budget').insert([{ item: budgetItem, amount: Number(budgetAmount), payer: budgetPayer, unpaid_users: budgetUnpaid }])
     setBudgetItem(''); setBudgetAmount(''); setBudgetPayer(''); setBudgetUnpaid('')
-    fetchData() // 強制刷新
+    fetchData()
   }
 
   async function deleteBudget(id) {
     if (confirm('確定刪除此帳目？')) {
       await supabase.from('budget').delete().eq('id', id)
-      fetchData() // 強制刷新
+      fetchData()
     }
   }
 
   const totalBudget = budgetItems.reduce((sum, item) => sum + (item.amount || 0), 0)
 
+  // 通用輸入框樣式 (強制黑色字體)
+  const inputStyle = {
+    padding: '12px',
+    borderRadius: '12px',
+    border: '1px solid #E5E7EB',
+    background: '#F9FAFB',
+    fontSize: '16px',
+    color: '#000000', // 🔥 強制黑色文字
+    WebkitTextFillColor: '#000000', // 🔥 iOS Safari 專用
+    opacity: 1
+  }
+
   return (
-    <div style={{ width: '100%', minHeight: '100vh', background: theme.bg, fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box' }}>
+    // 🔥 最外層強制白色背景 + 100vw 寬度，解決黑邊問題
+    <div style={{ width: '100vw', minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box', overflowX: 'hidden' }}>
       
-      {/* 內容容器 */}
-      <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh' }}>
+      {/* 內容容器 (最大寬度限制，但背景是白的) */}
+      <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh', background: '#ffffff' }}>
         
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white' }}>
@@ -132,10 +144,19 @@ function App() {
 
           {/* --- 行程表 --- */}
           {activeTab === 'schedule' && (
-            <div style={{ paddingBottom: '120px' }}> {/* 只有行程表需要底部留白給輸入框 */}
+            <div style={{ paddingBottom: '120px' }}>
               
-              {/* 天數按鈕 */}
-              <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '10px', marginBottom: '10px' }}>
+              {/* 天數按鈕區 (🔥 修正滑動問題) */}
+              <div style={{ 
+                display: 'flex', 
+                overflowX: 'auto', 
+                whiteSpace: 'nowrap', 
+                paddingBottom: '10px', 
+                marginBottom: '10px',
+                width: '100%',             // 限制寬度
+                maxWidth: '100%',          // 防止撐開頁面
+                WebkitOverflowScrolling: 'touch' // iOS 滑動優化
+              }}>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => (
                   <button
                     key={day}
@@ -150,25 +171,18 @@ function App() {
                       fontSize: '14px',
                       fontWeight: 'bold',
                       cursor: 'pointer',
+                      flexShrink: 0, // 防止按鈕被壓縮
                       boxShadow: currentDay === day ? '0 4px 6px rgba(14, 165, 233, 0.3)' : 'none'
                     }}
                   >
                     Day {day}
                   </button>
                 ))}
-                <button 
-                  onClick={() => setTotalDays(totalDays + 1)} 
-                  style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', marginRight: '5px', fontSize: '18px' }}
-                >
-                  +
-                </button>
+                
+                {/* 增加/減少按鈕 */}
+                <button onClick={() => setTotalDays(totalDays + 1)} style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', marginRight: '5px', fontSize: '18px', flexShrink: 0 }}>+</button>
                 {totalDays > 1 && (
-                  <button 
-                    onClick={() => { if(confirm('確定要減少一天嗎？')) setTotalDays(totalDays - 1) }} 
-                    style={{ border: '1px solid #ddd', background: 'white', color: theme.danger, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', fontSize: '18px' }}
-                  >
-                    -
-                  </button>
+                  <button onClick={() => { if(confirm('確定要減少一天嗎？')) setTotalDays(totalDays - 1) }} style={{ border: '1px solid #ddd', background: 'white', color: theme.danger, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}>-</button>
                 )}
               </div>
 
@@ -180,7 +194,7 @@ function App() {
                       <span style={{ fontSize: '15px', fontWeight: 'bold', color: theme.primary }}>{plan.time.split(':')[0]}</span>
                       <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{plan.time.split(':')[1]}</span>
                     </div>
-                    <div style={{ flex: 1, color: theme.text, fontSize: '16px', fontWeight: '500' }}>{plan.content}</div>
+                    <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>{plan.content}</div>
                     <button onClick={() => deletePlan(plan.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                   </div>
                 ))}
@@ -192,27 +206,16 @@ function App() {
                 )}
               </div>
 
-              {/* 底部輸入框 (對齊調整) */}
+              {/* 底部輸入框 */}
               <div style={{ 
-                position: 'fixed', 
-                bottom: 0, 
-                left: 0, 
-                right: 0, 
-                background: 'white', 
-                // 這裡的 padding: '15px 20px' 對應上方的 padding: '0 20px'，確保左右對齊
-                padding: '15px 20px 25px', 
-                boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', 
-                display: 'flex', 
-                gap: '10px', 
-                maxWidth: '600px', 
-                margin: '0 auto', 
-                zIndex: 10,
-                boxSizing: 'border-box' // 確保 padding 不會撐爆寬度
+                position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', 
+                padding: '15px 20px 25px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', 
+                display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10, boxSizing: 'border-box' 
               }}>
-                <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontWeight: 'bold', fontSize: '16px' }}>
+                <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ ...inputStyle, fontWeight: 'bold', width: '90px' }}>
                   {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入行程..." style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '16px' }} />
+                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入行程..." style={{ ...inputStyle, flex: 1 }} />
                 <button onClick={addPlan} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>新增</button>
               </div>
             </div>
@@ -221,25 +224,22 @@ function App() {
           {/* --- 預算表 --- */}
           {activeTab === 'budget' && (
             <div style={{ paddingBottom: '40px' }}>
-              {/* 總花費 */}
               <div style={{ background: 'white', padding: '25px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', textAlign: 'center', marginBottom: '20px' }}>
                 <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>目前總支出</div>
                 <div style={{ fontSize: '40px', fontWeight: '800', color: '#059669' }}>${totalBudget.toLocaleString()}</div>
               </div>
 
-              {/* 新增預算 */}
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 新增一筆</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <input placeholder="項目" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
-                  <input type="number" placeholder="金額" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
-                  <input placeholder="先付的人" value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
-                  <input placeholder="欠款的人" value={budgetUnpaid} onChange={e => setBudgetUnpaid(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
+                  <input placeholder="項目" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={inputStyle} />
+                  <input type="number" placeholder="金額" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={inputStyle} />
+                  <input placeholder="先付的人" value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={inputStyle} />
+                  <input placeholder="欠款的人" value={budgetUnpaid} onChange={e => setBudgetUnpaid(e.target.value)} style={inputStyle} />
                 </div>
                 <button onClick={addBudget} style={{ width: '100%', marginTop: '15px', background: '#059669', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>＋ 新增帳目</button>
               </div>
 
-              {/* 帳目列表 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {budgetItems.map(item => (
                   <div key={item.id} style={{ background: 'white', padding: '15px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #F3F4F6' }}>
