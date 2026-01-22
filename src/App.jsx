@@ -63,7 +63,7 @@ function App() {
 
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {plans.map(plan => (
-          <li key={plan.id} style={{ padding: '15px', borderBottom: '1px solid #eee', background: '#f9f9f9', marginBottom: '5px', borderRadius: '5px' }}>
+          <li key={plan.id} style={{ color: '#333', padding: '15px', borderBottom: '1px solid #eee', background: '#f9f9f9', marginBottom: '5px', borderRadius: '5px' }}>
             {plan.content}
           </li>
         ))}
