@@ -18,9 +18,8 @@ for (let i = 0; i < 24; i++) {
 // --- 樣式設定 (Styles) ---
 const theme = {
   primary: '#0EA5E9', // 天空藍
-  bg: '#F3F4F6',      // 淺灰背景
+  bg: '#FFFFFF',      // 純白背景
   text: '#1F2937',    // 深灰文字
-  white: '#FFFFFF',
   danger: '#EF4444',  // 紅色
   shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
   radius: '12px'
@@ -42,7 +41,7 @@ function App() {
 
   useEffect(() => {
     fetchData()
-    // 雖然有即時監聽，但為了保險，我們等下在功能裡也會強制刷新
+    // 訂閱資料庫變更
     const sub1 = supabase.channel('plans-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => fetchData()).subscribe()
     const sub2 = supabase.channel('budget-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'budget' }, () => fetchData()).subscribe()
     return () => { supabase.removeChannel(sub1); supabase.removeChannel(sub2) }
@@ -56,7 +55,7 @@ function App() {
       const maxDay = Math.max(...plansData.map(p => p.day || 1))
       if (maxDay > totalDays) setTotalDays(maxDay)
     }
-    // 抓預算 (這裡加入防呆，如果資料庫還是空的也不會報錯)
+    // 抓預算
     const { data: budgetData } = await supabase.from('budget').select('*').order('created_at', { ascending: true })
     if (budgetData) setBudgetItems(budgetData)
   }
@@ -66,13 +65,13 @@ function App() {
     if (!planInput) return
     await supabase.from('plans').insert([{ content: planInput, day: currentDay, time: timeInput }])
     setPlanInput('')
-    fetchData() // ⚡️ 強制刷新
+    fetchData() // 強制刷新
   }
 
   async function deletePlan(id) {
     if (confirm('確定刪除此行程？')) {
       await supabase.from('plans').delete().eq('id', id)
-      fetchData() // ⚡️ 強制刷新
+      fetchData() // 強制刷新
     }
   }
 
@@ -80,38 +79,35 @@ function App() {
   async function addBudget() {
     if (!budgetItem || !budgetAmount) return
     await supabase.from('budget').insert([{ item: budgetItem, amount: Number(budgetAmount), payer: budgetPayer, unpaid_users: budgetUnpaid }])
-    // 清空輸入框
     setBudgetItem(''); setBudgetAmount(''); setBudgetPayer(''); setBudgetUnpaid('')
-    fetchData() // ⚡️ 強制刷新 (解決您說的無法及時更新問題)
+    fetchData() // 強制刷新
   }
 
   async function deleteBudget(id) {
     if (confirm('確定刪除此帳目？')) {
       await supabase.from('budget').delete().eq('id', id)
-      fetchData() // ⚡️ 強制刷新
+      fetchData() // 強制刷新
     }
   }
 
-  // 計算總預算
   const totalBudget = budgetItems.reduce((sum, item) => sum + (item.amount || 0), 0)
 
   return (
-    // 修正1: 外層改用 width: 100% 和 minHeight: 100vh，確保填滿手機畫面
-    <div style={{ width: '100%', minHeight: '100vh', background: theme.white, fontFamily: '-apple-system, sans-serif' }}>
+    <div style={{ width: '100%', minHeight: '100vh', background: theme.bg, fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box' }}>
       
-      {/* 限制內容最大寬度 (讓電腦版看起來不會太寬，但手機版會全滿) */}
-      <div style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '100px', position: 'relative', minHeight: '100vh' }}>
+      {/* 內容容器 */}
+      <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh' }}>
         
-        {/* Header 區域 */}
+        {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white' }}>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
           <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
         </div>
 
-        {/* 主要內容區塊 (往上浮動) */}
+        {/* 主內容區 (往上浮動) */}
         <div style={{ marginTop: '-40px', padding: '0 20px' }}>
           
-          {/* 分頁切換 Tabs */}
+          {/* Tabs 切換 */}
           <div style={{ background: 'white', padding: '5px', borderRadius: '16px', boxShadow: theme.shadow, display: 'flex', marginBottom: '20px' }}>
             {['schedule', 'budget'].map(tab => (
               <button
@@ -134,10 +130,11 @@ function App() {
             ))}
           </div>
 
-          {/* --- 行程表內容 --- */}
+          {/* --- 行程表 --- */}
           {activeTab === 'schedule' && (
-            <>
-              {/* 天數選擇器 (修正2: 增加刪除天數按鈕) */}
+            <div style={{ paddingBottom: '120px' }}> {/* 只有行程表需要底部留白給輸入框 */}
+              
+              {/* 天數按鈕 */}
               <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '10px', marginBottom: '10px' }}>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => (
                   <button
@@ -159,16 +156,12 @@ function App() {
                     Day {day}
                   </button>
                 ))}
-                
-                {/* 增加天數 (+) */}
                 <button 
                   onClick={() => setTotalDays(totalDays + 1)} 
                   style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', marginRight: '5px', fontSize: '18px' }}
                 >
                   +
                 </button>
-                
-                {/* 減少天數 (-) */}
                 {totalDays > 1 && (
                   <button 
                     onClick={() => { if(confirm('確定要減少一天嗎？')) setTotalDays(totalDays - 1) }} 
@@ -191,7 +184,6 @@ function App() {
                     <button onClick={() => deletePlan(plan.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                   </div>
                 ))}
-                
                 {plans.filter(p => (p.day || 1) === currentDay).length === 0 && (
                   <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9CA3AF' }}>
                     <div style={{ fontSize: '48px', marginBottom: '10px' }}>😴</div>
@@ -200,31 +192,46 @@ function App() {
                 )}
               </div>
 
-              {/* 固定底部的輸入框 (滿版設計) */}
-              <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', padding: '15px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10 }}>
+              {/* 底部輸入框 (對齊調整) */}
+              <div style={{ 
+                position: 'fixed', 
+                bottom: 0, 
+                left: 0, 
+                right: 0, 
+                background: 'white', 
+                // 這裡的 padding: '15px 20px' 對應上方的 padding: '0 20px'，確保左右對齊
+                padding: '15px 20px 25px', 
+                boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', 
+                display: 'flex', 
+                gap: '10px', 
+                maxWidth: '600px', 
+                margin: '0 auto', 
+                zIndex: 10,
+                boxSizing: 'border-box' // 確保 padding 不會撐爆寬度
+              }}>
                 <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontWeight: 'bold', fontSize: '16px' }}>
                   {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入行程..." style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '16px' }} />
                 <button onClick={addPlan} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>新增</button>
               </div>
-            </>
+            </div>
           )}
 
-          {/* --- 預算表內容 --- */}
+          {/* --- 預算表 --- */}
           {activeTab === 'budget' && (
-            <>
-              {/* 總花費卡片 */}
+            <div style={{ paddingBottom: '40px' }}>
+              {/* 總花費 */}
               <div style={{ background: 'white', padding: '25px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', textAlign: 'center', marginBottom: '20px' }}>
                 <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>目前總支出</div>
                 <div style={{ fontSize: '40px', fontWeight: '800', color: '#059669' }}>${totalBudget.toLocaleString()}</div>
               </div>
 
-              {/* 新增預算表單 */}
+              {/* 新增預算 */}
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 新增一筆</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <input placeholder="項目 (如: 晚餐)" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
+                  <input placeholder="項目" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
                   <input type="number" placeholder="金額" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
                   <input placeholder="先付的人" value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
                   <input placeholder="欠款的人" value={budgetUnpaid} onChange={e => setBudgetUnpaid(e.target.value)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '15px' }} />
@@ -233,7 +240,7 @@ function App() {
               </div>
 
               {/* 帳目列表 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingBottom: '50px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {budgetItems.map(item => (
                   <div key={item.id} style={{ background: 'white', padding: '15px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #F3F4F6' }}>
                     <div style={{ flex: 1 }}>
@@ -247,9 +254,8 @@ function App() {
                     <button onClick={() => deleteBudget(item.id)} style={{ border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', fontSize: '18px', padding: '5px' }}>✕</button>
                   </div>
                 ))}
-                {budgetItems.length === 0 && <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>目前還沒有記帳喔</div>}
               </div>
-            </>
+            </div>
           )}
 
         </div>
