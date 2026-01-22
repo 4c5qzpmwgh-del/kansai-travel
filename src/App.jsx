@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 // ⚠️⚠️⚠️ 請將下方這兩行，換回您剛剛備份的網址與 Key ⚠️⚠️⚠️
-const supabaseUrl = '您的_Supabase_URL_貼這裡'
-const supabaseKey = '您的_Supabase_Key_貼這裡'
+const supabaseUrl = 'https://wqwazukgsahnbmrjfihj.supabase.co'
+const supabaseKey = 'sb_publishable_EHxsxvA9fn8Gq8LMMndhQw_68lr1qXv'
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
