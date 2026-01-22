@@ -44,7 +44,7 @@ function App() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h1>✈️ 旅遊行程表 (多人協作版)</h1>
+      <h1>✈️ 旅遊行程表 (GJ Only)</h1>
       
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         <input 
