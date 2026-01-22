@@ -91,23 +91,24 @@ function App() {
 
   const totalBudget = budgetItems.reduce((sum, item) => sum + (item.amount || 0), 0)
 
-  // 通用輸入框樣式 (強制黑色字體)
+  // 通用輸入框樣式 (強制黑色字體 + 寬度100%)
   const inputStyle = {
+    width: '100%',             // 🔥 關鍵修正：確保寬度填滿，不溢出
+    boxSizing: 'border-box',   // 🔥 關鍵修正：確保 padding 不會撐大寬度
     padding: '12px',
     borderRadius: '12px',
     border: '1px solid #E5E7EB',
     background: '#F9FAFB',
     fontSize: '16px',
-    color: '#000000', // 🔥 強制黑色文字
-    WebkitTextFillColor: '#000000', // 🔥 iOS Safari 專用
-    opacity: 1
+    color: '#000000',
+    WebkitTextFillColor: '#000000',
+    opacity: 1,
+    marginBottom: '10px'       // 增加一點下方間距
   }
 
   return (
-    // 🔥 最外層強制白色背景 + 100vw 寬度，解決黑邊問題
     <div style={{ width: '100vw', minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box', overflowX: 'hidden' }}>
       
-      {/* 內容容器 (最大寬度限制，但背景是白的) */}
       <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh', background: '#ffffff' }}>
         
         {/* Header */}
@@ -116,7 +117,7 @@ function App() {
           <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
         </div>
 
-        {/* 主內容區 (往上浮動) */}
+        {/* 主內容區 */}
         <div style={{ marginTop: '-40px', padding: '0 20px' }}>
           
           {/* Tabs 切換 */}
@@ -146,16 +147,16 @@ function App() {
           {activeTab === 'schedule' && (
             <div style={{ paddingBottom: '120px' }}>
               
-              {/* 天數按鈕區 (🔥 修正滑動問題) */}
+              {/* 天數按鈕區 */}
               <div style={{ 
                 display: 'flex', 
                 overflowX: 'auto', 
                 whiteSpace: 'nowrap', 
                 paddingBottom: '10px', 
                 marginBottom: '10px',
-                width: '100%',             // 限制寬度
-                maxWidth: '100%',          // 防止撐開頁面
-                WebkitOverflowScrolling: 'touch' // iOS 滑動優化
+                width: '100%', 
+                maxWidth: '100%', 
+                WebkitOverflowScrolling: 'touch'
               }}>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => (
                   <button
@@ -171,15 +172,13 @@ function App() {
                       fontSize: '14px',
                       fontWeight: 'bold',
                       cursor: 'pointer',
-                      flexShrink: 0, // 防止按鈕被壓縮
+                      flexShrink: 0,
                       boxShadow: currentDay === day ? '0 4px 6px rgba(14, 165, 233, 0.3)' : 'none'
                     }}
                   >
                     Day {day}
                   </button>
                 ))}
-                
-                {/* 增加/減少按鈕 */}
                 <button onClick={() => setTotalDays(totalDays + 1)} style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', marginRight: '5px', fontSize: '18px', flexShrink: 0 }}>+</button>
                 {totalDays > 1 && (
                   <button onClick={() => { if(confirm('確定要減少一天嗎？')) setTotalDays(totalDays - 1) }} style={{ border: '1px solid #ddd', background: 'white', color: theme.danger, width: '35px', height: '35px', borderRadius: '50%', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}>-</button>
@@ -212,11 +211,11 @@ function App() {
                 padding: '15px 20px 25px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', 
                 display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10, boxSizing: 'border-box' 
               }}>
-                <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ ...inputStyle, fontWeight: 'bold', width: '90px' }}>
+                <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ ...inputStyle, width: '90px', marginBottom: 0 }}>
                   {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入行程..." style={{ ...inputStyle, flex: 1 }} />
-                <button onClick={addPlan} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>新增</button>
+                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入行程..." style={{ ...inputStyle, marginBottom: 0 }} />
+                <button onClick={addPlan} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}>新增</button>
               </div>
             </div>
           )}
@@ -231,13 +230,20 @@ function App() {
 
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 新增一筆</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <input placeholder="項目" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={inputStyle} />
-                  <input type="number" placeholder="金額" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={inputStyle} />
-                  <input placeholder="先付的人" value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={inputStyle} />
-                  <input placeholder="欠款的人" value={budgetUnpaid} onChange={e => setBudgetUnpaid(e.target.value)} style={inputStyle} />
+                
+                {/* 🔥 修正：改用直式排列 (flex-column)，確保手機不爆版 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <input placeholder="項目 (如: 晚餐)" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={inputStyle} />
+                  <input type="number" placeholder="金額 (數字)" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={inputStyle} />
+                  
+                  {/* 付款人與欠款人放同一行 (如果空間夠) 或直式 */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input placeholder="先付的人" value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={inputStyle} />
+                    <input placeholder="欠款的人" value={budgetUnpaid} onChange={e => setBudgetUnpaid(e.target.value)} style={inputStyle} />
+                  </div>
                 </div>
-                <button onClick={addBudget} style={{ width: '100%', marginTop: '15px', background: '#059669', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>＋ 新增帳目</button>
+
+                <button onClick={addBudget} style={{ width: '100%', marginTop: '10px', background: '#059669', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>＋ 新增帳目</button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
