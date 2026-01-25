@@ -36,6 +36,11 @@ function App() {
   const [flights, setFlights] = useState([])
   const [accommodations, setAccommodations] = useState([])
   
+  // 編輯彈窗狀態 (Modal)
+  const [editingPlan, setEditingPlan] = useState(null) // 當前正在查看/編輯的行程
+  const [editDesc, setEditDesc] = useState('')
+  const [editUrl, setEditUrl] = useState('')
+
   // 輸入框狀態
   const [planInput, setPlanInput] = useState('')
   const [timeInput, setTimeInput] = useState('09:00')
@@ -121,23 +126,25 @@ function App() {
     setHotelName(''); setHotelAddress(''); setCheckIn(''); setCheckOut(''); fetchData()
   }
 
-  // 🔥 關鍵功能：自動規劃路徑
+  // --- 詳細資訊功能 (開啟/儲存) ---
+  function openPlanDetail(plan) {
+    setEditingPlan(plan)
+    setEditDesc(plan.description || '')
+    setEditUrl(plan.url || '')
+  }
+
+  async function savePlanDetail() {
+    if (!editingPlan) return
+    await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', editingPlan.id)
+    setEditingPlan(null) // 關閉視窗
+    fetchData() // 刷新資料
+  }
+
   function openGoogleMapRoute() {
-    // 1. 找出今天的行程
     const todaysPlans = plans.filter(p => (p.day || 1) === currentDay);
-    
-    if (todaysPlans.length === 0) {
-      alert('今天還沒有行程喔！請先新增地點');
-      return;
-    }
-
-    // 2. 把行程内容變成地點字串
+    if (todaysPlans.length === 0) { alert('今天還沒有行程喔！'); return; }
     const destinations = todaysPlans.map(p => p.content.trim()).join('/');
-
-    // 3. 組合 Google Maps 網址
     const mapUrl = `https://www.google.com/maps/dir/${destinations}`;
-
-    // 4. 開啟新分頁
     window.open(mapUrl, '_blank');
   }
 
@@ -162,14 +169,13 @@ function App() {
         
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white' }}>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK Travel GJ Edition</h1>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
           <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
         </div>
 
         {/* 主內容區 */}
         <div style={{ marginTop: '-40px', padding: '0 20px' }}>
           
-          {/* 滑動式分頁選單 */}
           <div style={{ background: 'white', padding: '10px', borderRadius: '16px', boxShadow: theme.shadow, marginBottom: '20px', display: 'flex', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             <button onClick={() => setActiveTab('schedule')} style={tabStyle(activeTab === 'schedule')}>🗓 行程</button>
             <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 支出</button>
@@ -189,7 +195,6 @@ function App() {
                 <button onClick={() => setTotalDays(totalDays + 1)} style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', flexShrink: 0 }}>+</button>
               </div>
 
-              {/* 🔥 新增的「規劃路線」按鈕 */}
               <button 
                 onClick={openGoogleMapRoute}
                 style={{
@@ -203,28 +208,42 @@ function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {plans.filter(p => (p.day || 1) === currentDay).map(plan => (
-                  <div key={plan.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #eee', display: 'flex', alignItems: 'center', borderLeft: `4px solid ${theme.primary}` }}>
+                  <div 
+                    key={plan.id} 
+                    onClick={() => openPlanDetail(plan)} // 🔥 點擊觸發彈窗
+                    style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #eee', display: 'flex', alignItems: 'center', borderLeft: `4px solid ${theme.primary}`, cursor: 'pointer', transition: 'transform 0.1s' }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginRight: '16px', minWidth: '45px' }}>
                       <span style={{ fontSize: '15px', fontWeight: 'bold', color: theme.primary }}>{plan.time.split(':')[0]}</span>
                       <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{plan.time.split(':')[1]}</span>
                     </div>
-                    <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>{plan.content}</div>
-                    <button onClick={() => deleteItem('plans', plan.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>
+                        {plan.content}
+                        {/* 如果有連結，顯示一個小圖示提示 */}
+                        {plan.url && <span style={{ marginLeft: '5px', fontSize: '12px' }}>🔗</span>}
+                        {plan.description && <span style={{ marginLeft: '5px', fontSize: '12px' }}>📝</span>}
+                    </div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); deleteItem('plans', plan.id) }} // 防止觸發彈窗
+                      style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >✕</button>
                   </div>
                 ))}
               </div>
 
               <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', padding: '15px 20px 25px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10, boxSizing: 'border-box' }}>
                 <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ ...inputStyle, width: '90px', marginBottom: 0 }}>{timeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select>
-                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入地點 (如: 鄭王廟)" style={{ ...inputStyle, marginBottom: 0 }} />
+                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入地點 (如: 淺草寺)" style={{ ...inputStyle, marginBottom: 0 }} />
                 <button onClick={addPlan} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 'bold', flexShrink: 0 }}>新增</button>
               </div>
             </div>
           )}
 
-          {/* --- 2. 預算表 --- */}
+          {/* --- 2. 預算表 (維持原樣) --- */}
           {activeTab === 'budget' && (
-            <div style={{ paddingBottom: '40px' }}>
+             <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '25px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', textAlign: 'center', marginBottom: '20px' }}>
                 <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>目前總支出</div>
                 <div style={{ fontSize: '40px', fontWeight: '800', color: '#059669' }}>${totalBudget.toLocaleString()}</div>
@@ -251,10 +270,9 @@ function App() {
               ))}
             </div>
           )}
-
-          {/* --- 3. 航班頁面 --- */}
+          {/* --- 3. 航班 & 4. 住宿 (維持原樣) --- */}
           {activeTab === 'flights' && (
-            <div style={{ paddingBottom: '40px' }}>
+             <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>🛫 新增航班</h4>
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -265,7 +283,6 @@ function App() {
                 <input placeholder="航班代號 (JX800)" value={flightNumber} onChange={e => setFlightNumber(e.target.value)} style={inputStyle} />
                 <button onClick={addFlight} style={{ width: '100%', marginTop: '10px', background: theme.primary, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增航班</button>
               </div>
-
               {flights.map(item => (
                 <div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -278,13 +295,10 @@ function App() {
                   </div>
                 </div>
               ))}
-              {flights.length === 0 && <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>尚未新增航班資料</div>}
             </div>
           )}
-
-          {/* --- 4. 住宿頁面 --- */}
           {activeTab === 'accommodations' && (
-            <div style={{ paddingBottom: '40px' }}>
+             <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>🏨 新增住宿</h4>
                 <input placeholder="飯店名稱" value={hotelName} onChange={e => setHotelName(e.target.value)} style={inputStyle} />
@@ -295,26 +309,78 @@ function App() {
                 </div>
                 <button onClick={addAccommodation} style={{ width: '100%', marginTop: '10px', background: '#F59E0B', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增住宿</button>
               </div>
-
               {accommodations.map(item => (
                 <div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px' }}>
                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#111', marginBottom: '5px' }}>{item.name}</div>
                       <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>📍 {item.address}</div>
-                      <div style={{ fontSize: '14px', background: '#FFF7ED', color: '#B45309', display: 'inline-block', padding: '4px 8px', borderRadius: '6px' }}>
-                        📅 {item.check_in} - {item.check_out}
-                      </div>
+                      <div style={{ fontSize: '14px', background: '#FFF7ED', color: '#B45309', display: 'inline-block', padding: '4px 8px', borderRadius: '6px' }}>📅 {item.check_in} - {item.check_out}</div>
                     </div>
                     <button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px', marginLeft: '10px' }}>刪除</button>
                   </div>
                 </div>
               ))}
-              {accommodations.length === 0 && <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>尚未新增住宿資料</div>}
             </div>
           )}
 
         </div>
+
+        {/* 🔥 詳細資訊彈窗 (Modal) */}
+        {editingPlan && (
+          <div style={{ 
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+            background: 'rgba(0,0,0,0.5)', zIndex: 50, 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+          }} onClick={() => setEditingPlan(null)}>
+            <div style={{ 
+              background: 'white', width: '100%', maxWidth: '400px', borderRadius: '20px', padding: '25px', 
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative' 
+            }} onClick={e => e.stopPropagation()}>
+              
+              <h3 style={{ margin: '0 0 15px 0', fontSize: '20px', color: '#111' }}>📍 {editingPlan.content}</h3>
+              
+              <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>📝 景點介紹 / 筆記</p>
+              <textarea 
+                value={editDesc} 
+                onChange={e => setEditDesc(e.target.value)}
+                placeholder="輸入一些筆記..."
+                style={{ ...inputStyle, height: '100px', resize: 'none' }}
+              />
+
+              <p style={{ margin: '10px 0 5px 0', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>🔗 相關網址 (Google Map / 部落格)</p>
+              <input 
+                value={editUrl} 
+                onChange={e => setEditUrl(e.target.value)}
+                placeholder="https://..."
+                style={inputStyle}
+              />
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button 
+                  onClick={savePlanDetail} 
+                  style={{ flex: 1, padding: '12px', background: '#111', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  💾 儲存
+                </button>
+                {editUrl && (
+                  <button 
+                    onClick={() => window.open(editUrl, '_blank')}
+                    style={{ flex: 1, padding: '12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    🌏 前往網頁
+                  </button>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => setEditingPlan(null)}
+                style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' }}
+              >✕</button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )
