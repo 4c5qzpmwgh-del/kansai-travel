@@ -131,12 +131,10 @@ function App() {
       return;
     }
 
-    // 2. 把行程内容變成地點字串 (例如：淺草寺/晴空塔/秋葉原)
-    // 這裡會自動過濾掉特殊符號，確保網址正確
+    // 2. 把行程内容變成地點字串
     const destinations = todaysPlans.map(p => p.content.trim()).join('/');
 
     // 3. 組合 Google Maps 網址
-    // https://www.google.com/maps/dir/起點/中途點/終點
     const mapUrl = `https://www.google.com/maps/dir/${destinations}`;
 
     // 4. 開啟新分頁
@@ -174,7 +172,7 @@ function App() {
           {/* 滑動式分頁選單 */}
           <div style={{ background: 'white', padding: '10px', borderRadius: '16px', boxShadow: theme.shadow, marginBottom: '20px', display: 'flex', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             <button onClick={() => setActiveTab('schedule')} style={tabStyle(activeTab === 'schedule')}>🗓 行程</button>
-            <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 預算</button>
+            <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 支出</button>
             <button onClick={() => setActiveTab('flights')} style={tabStyle(activeTab === 'flights')}>🛫 航班</button>
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
@@ -197,7 +195,7 @@ function App() {
                 style={{
                   width: '100%', padding: '12px', background: '#E0F2FE', color: '#0284C7',
                   border: '1px dashed #0284C7', borderRadius: '12px', fontWeight: 'bold',
-                  marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
                 }}
               >
                 🗺️ 自動規劃當日路線 (Google Maps)
@@ -211,7 +209,7 @@ function App() {
                       <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{plan.time.split(':')[1]}</span>
                     </div>
                     <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>{plan.content}</div>
-                    <button onClick={() => deleteItem('plans', plan.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer' }}>✕</button>
+                    <button onClick={() => deleteItem('plans', plan.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                   </div>
                 ))}
               </div>
@@ -295,4 +293,31 @@ function App() {
                   <input placeholder="入住 (4/29)" value={checkIn} onChange={e => setCheckIn(e.target.value)} style={inputStyle} />
                   <input placeholder="退房 (5/1)" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inputStyle} />
                 </div>
-                <button onClick={addAccommodation
+                <button onClick={addAccommodation} style={{ width: '100%', marginTop: '10px', background: '#F59E0B', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增住宿</button>
+              </div>
+
+              {accommodations.map(item => (
+                <div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#111', marginBottom: '5px' }}>{item.name}</div>
+                      <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>📍 {item.address}</div>
+                      <div style={{ fontSize: '14px', background: '#FFF7ED', color: '#B45309', display: 'inline-block', padding: '4px 8px', borderRadius: '6px' }}>
+                        📅 {item.check_in} - {item.check_out}
+                      </div>
+                    </div>
+                    <button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px', marginLeft: '10px' }}>刪除</button>
+                  </div>
+                </div>
+              ))}
+              {accommodations.length === 0 && <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>尚未新增住宿資料</div>}
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default App
