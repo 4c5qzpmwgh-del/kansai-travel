@@ -216,7 +216,7 @@ function App() {
 
               <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', padding: '15px 20px 25px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10, boxSizing: 'border-box' }}>
                 <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ ...inputStyle, width: '90px', marginBottom: 0 }}>{timeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select>
-                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入地點 (如: 淺草寺)" style={{ ...inputStyle, marginBottom: 0 }} />
+                <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入地點 (如: 鄭王廟)" style={{ ...inputStyle, marginBottom: 0 }} />
                 <button onClick={addPlan} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: '12px', fontWeight: 'bold', flexShrink: 0 }}>新增</button>
               </div>
             </div>
