@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 // ⚠️⚠️⚠️ 請將下方這兩行，換回您剛剛備份的網址與 Key ⚠️⚠️⚠️
-const supabaseUrl = 'https://wqwazukgsahnbmrjfihj.supabase.co'
-const supabaseKey = 'sb_publishable_EHxsxvA9fn8Gq8LMMndhQw_68lr1qXv'
+const supabaseUrl = '您的_Supabase_URL_貼這裡'
+const supabaseKey = '您的_Supabase_Key_貼這裡'
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-// --- 靜態資料：泰語救命小卡 ---
+// --- 靜態資料 ---
 const thaiPhrases = [
   { text: '你好', thai: 'Sawasdee Krub', speak: 'Sawasdee Krub', icon: '🙏' },
   { text: '謝謝', thai: 'Khop Khun Krub', speak: 'Khop Khun Krub', icon: '😊' },
@@ -17,6 +17,13 @@ const thaiPhrases = [
   { text: '不辣', thai: 'Mai Phet', speak: 'Mai Phet', icon: '🌶️' },
   { text: '廁所在哪?', thai: 'Hong Nam Yu Nai?', speak: 'Hong Nam Yu Nai', icon: '🚽' },
   { text: '請開跳錶', thai: 'Meter Plz', speak: 'Meter Please', icon: '🚖' },
+]
+
+const emergencyContacts = [
+  { name: '觀光警察 (英文可)', phone: '1155', icon: '👮', desc: '遇到詐騙、糾紛時撥打' },
+  { name: '旅遊服務中心', phone: '1672', icon: 'ℹ️', desc: '一般旅遊諮詢' },
+  { name: '急救/救護車', phone: '1669', icon: '🚑', desc: '發生意外受傷時' },
+  { name: '台灣駐泰辦事處', phone: '081-666-4006', icon: '🇹🇼', desc: '護照遺失、急難救助' }, 
 ]
 
 // 產生時間選項
@@ -121,13 +128,28 @@ function App() {
     return diffDays > 0 ? diffDays : 0
   }
 
-  // 🔥 語音朗讀功能
   function speak(text) {
     const utterance = new SpeechSynthesisUtterance(text)
-    // 嘗試設定為泰語，如果系統不支援會退回預設(通常是英文，但也夠用了)
     utterance.lang = 'th-TH' 
-    utterance.rate = 0.8 // 稍微慢一點
+    utterance.rate = 0.8
     window.speechSynthesis.speak(utterance)
+  }
+
+  function copyScheduleToClipboard() {
+    const todaysPlans = plans.filter(p => (p.day || 1) === currentDay)
+    if (todaysPlans.length === 0) { alert('今天沒有行程可以複製'); return }
+    
+    let text = `📅 Day ${currentDay} 曼谷行程：\n`
+    todaysPlans.forEach(p => {
+      text += `${p.time} ${p.content}\n`
+    })
+    text += '\n(來自 BKK Travel App)'
+    
+    navigator.clipboard.writeText(text).then(() => {
+      alert('✅ 行程已複製！可以貼到 Line 群組囉')
+    }).catch(err => {
+      console.error('複製失敗', err)
+    })
   }
 
   async function addMember() { if (!newMemberName) return; const { error } = await supabase.from('members').insert([{ name: newMemberName }]); if (error) alert('新增失敗'); else { setNewMemberName(''); fetchData() } }
@@ -169,32 +191,59 @@ function App() {
         </div>
 
         <div style={{ marginTop: '-40px', padding: '0 20px' }}>
+          {/* 🔥 分頁選單 (新增了 🆘 急救 按鈕) */}
           <div style={{ background: 'white', padding: '10px', borderRadius: '16px', boxShadow: theme.shadow, marginBottom: '20px', display: 'flex', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             <button onClick={() => setActiveTab('schedule')} style={tabStyle(activeTab === 'schedule')}>🗓 行程</button>
             <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 分帳</button>
             <button onClick={() => setActiveTab('todos')} style={tabStyle(activeTab === 'todos')}>✅ 準備</button>
+            <button onClick={() => setActiveTab('emergency')} style={{ ...tabStyle(activeTab === 'emergency'), color: activeTab === 'emergency' ? 'white' : theme.danger, background: activeTab === 'emergency' ? theme.danger : '#FEF2F2' }}>🆘 急救</button>
             <button onClick={() => setActiveTab('flights')} style={tabStyle(activeTab === 'flights')}>🛫 航班</button>
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
 
-          {/* --- ✅ 準備 (Checklist & Thai Tools) --- */}
+          {/* --- 🆘 緊急聯絡 (獨立分頁) --- */}
+          {activeTab === 'emergency' && (
+            <div style={{ paddingBottom: '40px' }}>
+              <div style={{ background: '#FEF2F2', padding: '25px', borderRadius: theme.radius, border: `1px solid ${theme.danger}`, textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '50px', marginBottom: '10px' }}>🆘</div>
+                <h2 style={{ margin: 0, color: '#991B1B' }}>緊急救援中心</h2>
+                <p style={{ margin: '10px 0 0', color: '#B91C1C', fontSize: '14px' }}>遇到危急情況請保持冷靜，點擊按鈕即可撥打。</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {emergencyContacts.map((c, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #eee', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                    <span style={{ fontSize: '30px', marginRight: '15px' }}>{c.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#111' }}>{c.name}</div>
+                      <div style={{ fontSize: '16px', color: theme.danger, fontWeight: 'bold' }}>{c.phone}</div>
+                      <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{c.desc}</div>
+                    </div>
+                    <a 
+                      href={`tel:${c.phone}`} 
+                      style={{ 
+                        padding: '12px 20px', background: theme.danger, color: 'white', 
+                        borderRadius: '10px', textDecoration: 'none', fontSize: '16px', fontWeight: 'bold',
+                        boxShadow: '0 4px 6px rgba(239, 68, 68, 0.3)'
+                      }}
+                    >
+                      撥打
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* --- ✅ 準備 (移除聯絡人，保留清單與泰語卡) --- */}
           {activeTab === 'todos' && (
             <div style={{ paddingBottom: '40px' }}>
               
-              {/* 🔥 泰語救命小卡區塊 */}
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>🇹🇭 泰語救命小卡 (點擊發音)</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   {thaiPhrases.map((p, idx) => (
-                    <button 
-                      key={idx}
-                      onClick={() => speak(p.speak)}
-                      style={{ 
-                        padding: '15px 10px', borderRadius: '12px', border: `1px solid #E5E7EB`, 
-                        background: '#F9FAFB', cursor: 'pointer', textAlign: 'center',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px'
-                      }}
-                    >
+                    <button key={idx} onClick={() => speak(p.speak)} style={{ padding: '15px 10px', borderRadius: '12px', border: `1px solid #E5E7EB`, background: '#F9FAFB', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
                       <span style={{ fontSize: '24px' }}>{p.icon}</span>
                       <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#111' }}>{p.text}</span>
                       <span style={{ fontSize: '12px', color: '#666' }}>{p.thai}</span>
@@ -203,7 +252,6 @@ function App() {
                 </div>
               </div>
 
-              {/* 匯率小工具 */}
               <div style={{ background: '#F0FDF4', padding: '20px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.success}` }}>
                 <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率換算 (約 0.9)</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -213,13 +261,9 @@ function App() {
                 </div>
               </div>
 
-              {/* 檢查清單 */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
+              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 行前檢查清單</h4>
-                <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
-                  <input value={todoInput} onChange={e => setTodoInput(e.target.value)} placeholder="還需要帶什麼？" style={{ ...inputStyle, marginBottom: 0 }} />
-                  <button onClick={addTodo} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 15px', borderRadius: '12px', fontWeight: 'bold' }}>新增</button>
-                </div>
+                <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}><input value={todoInput} onChange={e => setTodoInput(e.target.value)} placeholder="還需要帶什麼？" style={{ ...inputStyle, marginBottom: 0 }} /><button onClick={addTodo} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 15px', borderRadius: '12px', fontWeight: 'bold' }}>新增</button></div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {todos.map(todo => (
                     <div key={todo.id} style={{ display: 'flex', alignItems: 'center', padding: '10px', background: todo.is_completed ? '#F3F4F6' : 'white', borderRadius: '8px', border: '1px solid #eee', opacity: todo.is_completed ? 0.6 : 1 }}>
@@ -234,7 +278,7 @@ function App() {
             </div>
           )}
 
-          {/* 其他分頁內容 (維持原樣) */}
+          {/* --- 行程表 --- */}
           {activeTab === 'schedule' && (
             <div style={{ paddingBottom: '120px' }}>
               <div style={{ display: 'flex', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
@@ -243,7 +287,12 @@ function App() {
                 ))}
                 <button onClick={() => setTotalDays(totalDays + 1)} style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', flexShrink: 0 }}>+</button>
               </div>
-              <button onClick={openGoogleMapRoute} style={{ width: '100%', padding: '12px', background: '#E0F2FE', color: '#0284C7', border: '1px dashed #0284C7', borderRadius: '12px', fontWeight: 'bold', marginBottom: '15px', cursor: 'pointer' }}>🗺️ 自動規劃當日路線</button>
+              
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <button onClick={openGoogleMapRoute} style={{ flex: 2, padding: '12px', background: '#E0F2FE', color: '#0284C7', border: '1px dashed #0284C7', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>🗺️ 自動規劃路線</button>
+                <button onClick={copyScheduleToClipboard} style={{ flex: 1, padding: '12px', background: '#F3F4F6', color: '#333', border: '1px solid #ddd', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>📋 複製</button>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {plans.filter(p => (p.day || 1) === currentDay).map(plan => {
                   const isFlipped = flippedId === plan.id;
