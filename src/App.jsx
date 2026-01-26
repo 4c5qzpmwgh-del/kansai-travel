@@ -36,12 +36,11 @@ function App() {
   const [budgetItems, setBudgetItems] = useState([])
   const [flights, setFlights] = useState([])
   const [accommodations, setAccommodations] = useState([])
-  const [members, setMembers] = useState([]) // 👥 成員名單
+  const [members, setMembers] = useState([])
+  const [todos, setTodos] = useState([]) // ✅ 檢查清單
   
   // 翻卡狀態
   const [flippedId, setFlippedId] = useState(null)
-  
-  // 編輯輸入框
   const [editDesc, setEditDesc] = useState('')
   const [editUrl, setEditUrl] = useState('')
 
@@ -52,11 +51,11 @@ function App() {
   // 預算輸入
   const [budgetItem, setBudgetItem] = useState('')
   const [budgetAmount, setBudgetAmount] = useState('')
-  const [budgetPayer, setBudgetPayer] = useState('') // 付款人 (現在是下拉選單)
-  const [budgetInvolved, setBudgetInvolved] = useState([]) // 分擔人 (陣列)
-  const [newMemberName, setNewMemberName] = useState('') // 新增成員輸入框
+  const [budgetPayer, setBudgetPayer] = useState('')
+  const [budgetInvolved, setBudgetInvolved] = useState([])
+  const [newMemberName, setNewMemberName] = useState('')
 
-  // 航班/住宿 輸入框
+  // 航班/住宿/清單 輸入框
   const [flightDate, setFlightDate] = useState('')
   const [flightTime, setFlightTime] = useState('')
   const [flightAirline, setFlightAirline] = useState('')
@@ -65,28 +64,27 @@ function App() {
   const [hotelAddress, setHotelAddress] = useState('')
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
+  const [todoInput, setTodoInput] = useState('')
+
+  // 匯率計算機
+  const [thbInput, setThbInput] = useState('')
 
   useEffect(() => {
     fetchData()
-    // 訂閱所有變更
     const subs = [
       supabase.channel('plans').on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => fetchData()).subscribe(),
       supabase.channel('budget').on('postgres_changes', { event: '*', schema: 'public', table: 'budget' }, () => fetchData()).subscribe(),
       supabase.channel('flights').on('postgres_changes', { event: '*', schema: 'public', table: 'flights' }, () => fetchData()).subscribe(),
       supabase.channel('acco').on('postgres_changes', { event: '*', schema: 'public', table: 'accommodations' }, () => fetchData()).subscribe(),
-      supabase.channel('members').on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => fetchData()).subscribe()
+      supabase.channel('members').on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => fetchData()).subscribe(),
+      supabase.channel('todos').on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => fetchData()).subscribe()
     ]
     return () => subs.forEach(sub => supabase.removeChannel(sub))
   }, [])
 
   async function fetchData() {
-    // 抓取各個表格資料
     const { data: p } = await supabase.from('plans').select('*').order('time', { ascending: true })
-    if (p) {
-      setPlans(p)
-      const maxDay = Math.max(...p.map(x => x.day || 1))
-      if (maxDay > totalDays) setTotalDays(maxDay)
-    }
+    if (p) { setPlans(p); const maxDay = Math.max(...p.map(x => x.day || 1)); if (maxDay > totalDays) setTotalDays(maxDay) }
     const { data: b } = await supabase.from('budget').select('*').order('created_at', { ascending: true })
     if (b) setBudgetItems(b)
     const { data: f } = await supabase.from('flights').select('*').order('created_at', { ascending: true })
@@ -94,159 +92,44 @@ function App() {
     const { data: a } = await supabase.from('accommodations').select('*').order('created_at', { ascending: true })
     if (a) setAccommodations(a)
     const { data: m } = await supabase.from('members').select('*').order('created_at', { ascending: true })
-    if (m) {
-      setMembers(m)
-      // 如果還沒有預設付款人，預設選第一個成員
-      if (m.length > 0 && !budgetPayer) setBudgetPayer(m[0].name)
-    }
+    if (m) { setMembers(m); if (m.length > 0 && !budgetPayer) setBudgetPayer(m[0].name) }
+    const { data: t } = await supabase.from('todos').select('*').order('id', { ascending: true })
+    if (t) setTodos(t)
   }
 
   // --- 通用刪除 ---
   async function deleteItem(table, id) {
-    if (confirm('確定要刪除嗎？')) {
-      await supabase.from(table).delete().eq('id', id)
-      fetchData()
-    }
+    if (confirm('確定要刪除嗎？')) { await supabase.from(table).delete().eq('id', id); fetchData() }
   }
 
-  // --- 成員功能 ---
-  async function addMember() {
-    if (!newMemberName) return
-    const { error } = await supabase.from('members').insert([{ name: newMemberName }])
-    if (error) alert('新增失敗，名字可能重複了')
-    else { setNewMemberName(''); fetchData() }
+  // --- 倒數計時邏輯 ---
+  function getDaysUntilTrip() {
+    const today = new Date()
+    const tripDate = new Date('2026-04-29') // 您的出發日期
+    const diffTime = tripDate - today
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays > 0 ? diffDays : 0
   }
 
-  // --- 預算功能 (改版) ---
-  async function addBudget() {
-    if (!budgetItem || !budgetAmount || !budgetPayer) return
-    
-    // 如果沒有勾選分擔人，預設是「全部成員」平均分攤
-    const finalInvolved = budgetInvolved.length > 0 ? budgetInvolved : members.map(m => m.name)
-    
-    // 將分擔人陣列轉成字串存入 (JSON 格式比較好處理，但為了相容舊資料我們用逗號分隔)
-    const involvedString = finalInvolved.join(',')
-
-    await supabase.from('budget').insert([{ 
-      item: budgetItem, 
-      amount: Number(budgetAmount), 
-      payer: budgetPayer, 
-      unpaid_users: involvedString 
-    }])
-    
-    setBudgetItem(''); setBudgetAmount(''); setBudgetInvolved([])
-    fetchData()
-  }
-
-  // 切換分擔人勾選
-  function toggleInvolved(name) {
-    if (budgetInvolved.includes(name)) {
-      setBudgetInvolved(budgetInvolved.filter(n => n !== name))
-    } else {
-      setBudgetInvolved([...budgetInvolved, name])
-    }
-  }
-
-  // --- 結算演算法 (核心黑科技) ---
-  function calculateSettlement() {
-    const balances = {}
-    members.forEach(m => balances[m.name] = 0)
-
-    budgetItems.forEach(item => {
-      const payer = item.payer
-      const amount = Number(item.amount)
-      // 處理分擔人 (相容舊資料的文字格式)
-      let involved = []
-      if (item.unpaid_users) {
-         // 嘗試解析 JSON，如果失敗就當作逗號分隔字串
-         try { involved = JSON.parse(item.unpaid_users) } catch { involved = item.unpaid_users.split(',') }
-         // 如果分出來是空字串 (舊資料可能格式不對)，就當作所有人分
-         if (involved.length === 1 && involved[0] === '') involved = members.map(m => m.name)
-      } else {
-         involved = members.map(m => m.name)
-      }
-      
-      // 過濾掉可能已經被刪除的成員
-      const validInvolved = involved.filter(name => members.find(m => m.name === name))
-      if (validInvolved.length === 0) return
-
-      const splitAmount = amount / validInvolved.length
-      
-      // 付款人 +
-      if (balances[payer] !== undefined) balances[payer] += amount
-      
-      // 分擔人 -
-      validInvolved.forEach(name => {
-        if (balances[name] !== undefined) balances[name] -= splitAmount
-      })
-    })
-
-    // 產生建議轉帳路徑
-    const debtors = []
-    const creditors = []
-    Object.keys(balances).forEach(name => {
-      const val = balances[name]
-      if (val < -0.1) debtors.push({ name, amount: val }) // 欠錢的人 (負數)
-      if (val > 0.1) creditors.push({ name, amount: val }) // 收錢的人 (正數)
-    })
-    
-    debtors.sort((a, b) => a.amount - b.amount) // 欠最多的排前面
-    creditors.sort((a, b) => b.amount - a.amount) // 收最多的排前面
-
-    const transactions = []
-    let i = 0, j = 0
-    while (i < debtors.length && j < creditors.length) {
-      const debtor = debtors[i]
-      const creditor = creditors[j]
-      
-      // 取絕對值比較，看是能還完還是只能還一部分
-      const amount = Math.min(Math.abs(debtor.amount), creditor.amount)
-      
-      transactions.push(`${debtor.name} ➜ ${creditor.name}: $${Math.round(amount)}`)
-      
-      debtor.amount += amount
-      creditor.amount -= amount
-      
-      if (Math.abs(debtor.amount) < 0.1) i++
-      if (creditor.amount < 0.1) j++
-    }
-    
-    return transactions
-  }
-
-  // --- 其他新增功能 ---
-  async function addPlan() {
-    if (!planInput) return
-    await supabase.from('plans').insert([{ content: planInput, day: currentDay, time: timeInput }])
-    setPlanInput(''); fetchData()
-  }
-  async function addFlight() {
-    await supabase.from('flights').insert([{ date: flightDate, time: flightTime, airline: flightAirline, flight_number: flightNumber }])
-    setFlightDate(''); setFlightTime(''); setFlightAirline(''); setFlightNumber(''); fetchData()
-  }
-  async function addAccommodation() {
-    await supabase.from('accommodations').insert([{ name: hotelName, address: hotelAddress, check_in: checkIn, check_out: checkOut }])
-    setHotelName(''); setHotelAddress(''); setCheckIn(''); setCheckOut(''); fetchData()
-  }
+  // --- 功能函數 ---
+  async function addMember() { if (!newMemberName) return; const { error } = await supabase.from('members').insert([{ name: newMemberName }]); if (error) alert('新增失敗'); else { setNewMemberName(''); fetchData() } }
+  async function addBudget() { if (!budgetItem || !budgetAmount || !budgetPayer) return; const finalInvolved = budgetInvolved.length > 0 ? budgetInvolved : members.map(m => m.name); await supabase.from('budget').insert([{ item: budgetItem, amount: Number(budgetAmount), payer: budgetPayer, unpaid_users: finalInvolved.join(',') }]); setBudgetItem(''); setBudgetAmount(''); setBudgetInvolved([]); fetchData() }
+  function toggleInvolved(name) { if (budgetInvolved.includes(name)) setBudgetInvolved(budgetInvolved.filter(n => n !== name)); else setBudgetInvolved([...budgetInvolved, name]) }
+  function calculateSettlement() { const balances = {}; members.forEach(m => balances[m.name] = 0); budgetItems.forEach(item => { const payer = item.payer; const amount = Number(item.amount); let involved = []; if (item.unpaid_users) { try { involved = JSON.parse(item.unpaid_users) } catch { involved = item.unpaid_users.split(',') } if (involved.length === 1 && involved[0] === '') involved = members.map(m => m.name) } else { involved = members.map(m => m.name) } const validInvolved = involved.filter(name => members.find(m => m.name === name)); if (validInvolved.length === 0) return; const splitAmount = amount / validInvolved.length; if (balances[payer] !== undefined) balances[payer] += amount; validInvolved.forEach(name => { if (balances[name] !== undefined) balances[name] -= splitAmount }) }); const debtors = []; const creditors = []; Object.keys(balances).forEach(name => { const val = balances[name]; if (val < -0.1) debtors.push({ name, amount: val }); if (val > 0.1) creditors.push({ name, amount: val }) }); debtors.sort((a, b) => a.amount - b.amount); creditors.sort((a, b) => b.amount - a.amount); const transactions = []; let i = 0, j = 0; while (i < debtors.length && j < creditors.length) { const debtor = debtors[i]; const creditor = creditors[j]; const amount = Math.min(Math.abs(debtor.amount), creditor.amount); transactions.push(`${debtor.name} ➜ ${creditor.name}: $${Math.round(amount)}`); debtor.amount += amount; creditor.amount -= amount; if (Math.abs(debtor.amount) < 0.1) i++; if (creditor.amount < 0.1) j++ } return transactions }
+  async function addPlan() { if (!planInput) return; await supabase.from('plans').insert([{ content: planInput, day: currentDay, time: timeInput }]); setPlanInput(''); fetchData() }
+  async function addFlight() { await supabase.from('flights').insert([{ date: flightDate, time: flightTime, airline: flightAirline, flight_number: flightNumber }]); setFlightDate(''); setFlightTime(''); setFlightAirline(''); setFlightNumber(''); fetchData() }
+  async function addAccommodation() { await supabase.from('accommodations').insert([{ name: hotelName, address: hotelAddress, check_in: checkIn, check_out: checkOut }]); setHotelName(''); setHotelAddress(''); setCheckIn(''); setCheckOut(''); fetchData() }
+  function handleFlip(plan) { if (flippedId === plan.id) setFlippedId(null); else { setFlippedId(plan.id); setEditDesc(plan.description || ''); setEditUrl(plan.url || '') } }
+  async function savePlanDetail(id) { await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', id); setFlippedId(null); fetchData() }
+  function openGoogleMapRoute() { const todaysPlans = plans.filter(p => (p.day || 1) === currentDay); if (todaysPlans.length === 0) { alert('無行程'); return } const destinations = todaysPlans.map(p => p.content.trim()).join('/'); window.open(`https://www.google.com/maps/dir/${destinations}`, '_blank') }
   
-  // 翻卡與地圖
-  function handleFlip(plan) {
-    if (flippedId === plan.id) setFlippedId(null)
-    else { setFlippedId(plan.id); setEditDesc(plan.description || ''); setEditUrl(plan.url || '') }
-  }
-  async function savePlanDetail(id) {
-    await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', id)
-    setFlippedId(null); fetchData()
-  }
-  function openGoogleMapRoute() {
-    const todaysPlans = plans.filter(p => (p.day || 1) === currentDay)
-    if (todaysPlans.length === 0) { alert('無行程'); return }
-    const destinations = todaysPlans.map(p => p.content.trim()).join('/')
-    window.open(`https://www.google.com/maps/dir/${destinations}`, '_blank')
-  }
+  // ✅ 待辦事項功能
+  async function addTodo() { if (!todoInput) return; await supabase.from('todos').insert([{ task: todoInput }]); setTodoInput(''); fetchData() }
+  async function toggleTodo(id, currentStatus) { await supabase.from('todos').update({ is_completed: !currentStatus }).eq('id', id); fetchData() }
 
   const totalBudget = budgetItems.reduce((sum, item) => sum + (item.amount || 0), 0)
   const transactions = calculateSettlement()
+  const daysUntil = getDaysUntilTrip()
 
   // 樣式
   const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '16px', color: '#000000', marginBottom: '10px' }
@@ -257,124 +140,77 @@ function App() {
     <div style={{ width: '100vw', minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh', background: '#ffffff' }}>
         
-        {/* Header */}
-        <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white' }}>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
-          <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
+        {/* Header (升級版：含倒數) */}
+        <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
+            <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
+            {/* 倒數計時器 */}
+            <div style={{ marginTop: '15px', display: 'inline-block', background: 'rgba(255,255,255,0.2)', padding: '5px 15px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' }}>
+              ⏳ 距離出發還有 {daysUntil} 天
+            </div>
+          </div>
+          {/* 裝飾圓圈 */}
+          <div style={{ position: 'absolute', top: -20, right: -20, width: '100px', height: '100px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
         </div>
 
         <div style={{ marginTop: '-40px', padding: '0 20px' }}>
           <div style={{ background: 'white', padding: '10px', borderRadius: '16px', boxShadow: theme.shadow, marginBottom: '20px', display: 'flex', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             <button onClick={() => setActiveTab('schedule')} style={tabStyle(activeTab === 'schedule')}>🗓 行程</button>
             <button onClick={() => setActiveTab('budget')} style={tabStyle(activeTab === 'budget')}>💰 分帳</button>
+            <button onClick={() => setActiveTab('todos')} style={tabStyle(activeTab === 'todos')}>✅ 準備</button>
             <button onClick={() => setActiveTab('flights')} style={tabStyle(activeTab === 'flights')}>🛫 航班</button>
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
 
-          {/* --- 預算與分帳 (大改版) --- */}
-          {activeTab === 'budget' && (
-             <div style={{ paddingBottom: '40px' }}>
+          {/* --- ✅ 準備 (Checklist & Tools) --- */}
+          {activeTab === 'todos' && (
+            <div style={{ paddingBottom: '40px' }}>
               
-              {/* 1. 成員管理區塊 */}
-              <div style={{ background: '#F0F9FF', padding: '15px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.primary}` }}>
-                 <div style={{ fontSize: '14px', fontWeight: 'bold', color: theme.primary, marginBottom: '10px' }}>👥 旅遊成員 (先在這裡加人)</div>
-                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-                   {members.map(m => (
-                     <span key={m.id} style={{ background: 'white', padding: '5px 10px', borderRadius: '20px', fontSize: '14px', color: '#111', border: '1px solid #ddd', display: 'flex', alignItems: 'center' }}>
-                       {m.name}
-                       <span onClick={() => deleteItem('members', m.id)} style={{ marginLeft: '5px', color: '#999', cursor: 'pointer', fontWeight: 'bold' }}>×</span>
-                     </span>
-                   ))}
-                   {members.length === 0 && <span style={{ fontSize: '13px', color: '#666' }}>還沒有成員，請先新增</span>}
-                 </div>
-                 <div style={{ display: 'flex', gap: '5px' }}>
-                   <input value={newMemberName} onChange={e => setNewMemberName(e.target.value)} placeholder="輸入名字 (如: Alvin)" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-                   <button onClick={addMember} style={{ background: theme.primary, color: 'white', border: 'none', borderRadius: '12px', padding: '0 15px', fontWeight: 'bold' }}>新增</button>
-                 </div>
+              {/* 匯率小工具 */}
+              <div style={{ background: '#F0FDF4', padding: '20px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.success}` }}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率換算 (約 0.9)</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input type="number" placeholder="泰銖 THB" value={thbInput} onChange={e => setThbInput(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+                  <span style={{ fontSize: '20px' }}>≈</span>
+                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '20px', color: '#166534' }}>
+                    {thbInput ? Math.round(thbInput * 0.9 * 10) / 10 : 0} TWD
+                  </div>
+                </div>
+                <div style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>* 僅供快速參考，實際請依換匯匯率</div>
               </div>
 
-              {/* 總支出 */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', textAlign: 'center', marginBottom: '20px' }}>
-                <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>目前總支出</div>
-                <div style={{ fontSize: '40px', fontWeight: '800', color: theme.success }}>${totalBudget.toLocaleString()}</div>
-              </div>
-
-              {/* 2. 新增帳目區塊 (勾選式) */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 新增一筆消費</h4>
-                <input placeholder="項目 (如: 晚餐)" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={inputStyle} />
-                <input type="number" placeholder="金額" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={inputStyle} />
+              {/* 檢查清單 */}
+              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 行前檢查清單 (共同協作)</h4>
                 
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '5px' }}>誰先付錢？</label>
-                  <select value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={inputStyle}>
-                    {members.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-                    {members.length === 0 && <option>請先新增成員</option>}
-                  </select>
+                {/* 新增項目 */}
+                <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+                  <input value={todoInput} onChange={e => setTodoInput(e.target.value)} placeholder="還需要帶什麼？" style={{ ...inputStyle, marginBottom: 0 }} />
+                  <button onClick={addTodo} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 15px', borderRadius: '12px', fontWeight: 'bold' }}>新增</button>
                 </div>
 
-                <div style={{ marginBottom: '15px' }}>
-                   <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '5px' }}>誰要分擔？(未勾選代表全員分擔)</label>
-                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                     {members.map(m => (
-                       <button 
-                         key={m.id} 
-                         onClick={() => toggleInvolved(m.name)}
-                         style={{ 
-                           padding: '6px 12px', borderRadius: '20px', border: '1px solid', fontSize: '14px', cursor: 'pointer',
-                           background: budgetInvolved.includes(m.name) ? theme.primary : 'white',
-                           color: budgetInvolved.includes(m.name) ? 'white' : '#666',
-                           borderColor: budgetInvolved.includes(m.name) ? theme.primary : '#ddd'
-                         }}
-                       >
-                         {m.name}
-                       </button>
-                     ))}
-                   </div>
-                </div>
-
-                <button onClick={addBudget} style={{ width: '100%', background: theme.success, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px' }}>＋ 新增帳目</button>
-              </div>
-
-              {/* 帳目列表 */}
-              <div style={{ marginBottom: '30px' }}>
-                {budgetItems.map(item => (
-                  <div key={item.id} style={{ background: 'white', padding: '15px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #F3F4F6', marginBottom: '10px' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{item.item}</div>
-                      <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>
-                        <span style={{ color: theme.primary, fontWeight: 'bold' }}>{item.payer}</span> 先付
-                        <span style={{ marginLeft: '5px', color: '#999' }}>
-                          (分擔: {item.unpaid_users && item.unpaid_users.length > 20 ? item.unpaid_users.substring(0,20)+'...' : item.unpaid_users})
-                        </span>
-                      </div>
+                {/* 清單列表 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {todos.map(todo => (
+                    <div key={todo.id} style={{ display: 'flex', alignItems: 'center', padding: '10px', background: todo.is_completed ? '#F3F4F6' : 'white', borderRadius: '8px', border: '1px solid #eee', opacity: todo.is_completed ? 0.6 : 1 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={todo.is_completed} 
+                        onChange={() => toggleTodo(todo.id, todo.is_completed)}
+                        style={{ width: '20px', height: '20px', marginRight: '10px', cursor: 'pointer' }}
+                      />
+                      <span style={{ flex: 1, textDecoration: todo.is_completed ? 'line-through' : 'none', fontSize: '16px' }}>{todo.task}</span>
+                      <button onClick={() => deleteItem('todos', todo.id)} style={{ border: 'none', background: 'transparent', color: '#ccc', cursor: 'pointer' }}>✕</button>
                     </div>
-                    <div style={{ fontWeight: 'bold', fontSize: '18px', color: theme.success, marginRight: '15px' }}>${item.amount}</div>
-                    <button onClick={() => deleteItem('budget', item.id)} style={{ border: 'none', background: 'transparent', color: '#9CA3AF', padding: '5px' }}>✕</button>
-                  </div>
-                ))}
-              </div>
-
-              {/* 3. 結算中心 */}
-              <div style={{ background: '#111', padding: '25px', borderRadius: theme.radius, color: 'white', marginBottom: '50px' }}>
-                <h3 style={{ margin: '0 0 15px 0', borderBottom: '1px solid #333', paddingBottom: '10px' }}>📊 結算中心</h3>
-                {transactions.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {transactions.map((t, idx) => (
-                      <div key={idx} style={{ fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-                        <span style={{ marginRight: '10px', color: theme.success }}>💸</span> {t}
-                      </div>
-                    ))}
-                    <div style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>* 系統已自動計算最佳轉帳路徑</div>
-                  </div>
-                ) : (
-                  <div style={{ color: '#666' }}>目前沒有債務需要結清 👍</div>
-                )}
+                  ))}
+                  {todos.length === 0 && <div style={{ textAlign: 'center', color: '#999' }}>清單是空的 🎉</div>}
+                </div>
               </div>
             </div>
           )}
 
-          {/* 行程表 (維持翻卡修正版) */}
+          {/* --- 行程表 --- */}
           {activeTab === 'schedule' && (
             <div style={{ paddingBottom: '120px' }}>
               <div style={{ display: 'flex', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
@@ -421,42 +257,50 @@ function App() {
             </div>
           )}
 
-          {/* 航班與住宿 (簡化版，功能不變) */}
+          {/* 預算頁面 (功能不變) */}
+          {activeTab === 'budget' && (
+             <div style={{ paddingBottom: '40px' }}>
+              <div style={{ background: '#F0F9FF', padding: '15px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.primary}` }}>
+                 <div style={{ fontSize: '14px', fontWeight: 'bold', color: theme.primary, marginBottom: '10px' }}>👥 旅遊成員</div>
+                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                   {members.map(m => ( <span key={m.id} style={{ background: 'white', padding: '5px 10px', borderRadius: '20px', fontSize: '14px', color: '#111', border: '1px solid #ddd', display: 'flex', alignItems: 'center' }}>{m.name}<span onClick={() => deleteItem('members', m.id)} style={{ marginLeft: '5px', color: '#999', cursor: 'pointer', fontWeight: 'bold' }}>×</span></span> ))}
+                 </div>
+                 <div style={{ display: 'flex', gap: '5px' }}><input value={newMemberName} onChange={e => setNewMemberName(e.target.value)} placeholder="輸入名字" style={{ ...inputStyle, marginBottom: 0, flex: 1 }} /><button onClick={addMember} style={{ background: theme.primary, color: 'white', border: 'none', borderRadius: '12px', padding: '0 15px', fontWeight: 'bold' }}>新增</button></div>
+              </div>
+              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', textAlign: 'center', marginBottom: '20px' }}><div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '5px' }}>目前總支出</div><div style={{ fontSize: '40px', fontWeight: '800', color: theme.success }}>${totalBudget.toLocaleString()}</div></div>
+              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 新增消費</h4>
+                <input placeholder="項目" value={budgetItem} onChange={e => setBudgetItem(e.target.value)} style={inputStyle} /><input type="number" placeholder="金額" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} style={inputStyle} />
+                <div style={{ marginBottom: '10px' }}><label style={{ fontSize: '14px', color: '#666' }}>誰先付錢？</label><select value={budgetPayer} onChange={e => setBudgetPayer(e.target.value)} style={inputStyle}>{members.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select></div>
+                <div style={{ marginBottom: '15px' }}><label style={{ fontSize: '14px', color: '#666' }}>誰要分擔？</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>{members.map(m => (<button key={m.id} onClick={() => toggleInvolved(m.name)} style={{ padding: '6px 12px', borderRadius: '20px', border: '1px solid', fontSize: '14px', cursor: 'pointer', background: budgetInvolved.includes(m.name) ? theme.primary : 'white', color: budgetInvolved.includes(m.name) ? 'white' : '#666', borderColor: budgetInvolved.includes(m.name) ? theme.primary : '#ddd' }}>{m.name}</button>))}</div></div>
+                <button onClick={addBudget} style={{ width: '100%', background: theme.success, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px' }}>＋ 新增帳目</button>
+              </div>
+              <div style={{ marginBottom: '30px' }}>{budgetItems.map(item => (<div key={item.id} style={{ background: 'white', padding: '15px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #F3F4F6', marginBottom: '10px' }}><div style={{ flex: 1 }}><div style={{ fontWeight: 'bold', fontSize: '16px' }}>{item.item}</div><div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}><span style={{ color: theme.primary, fontWeight: 'bold' }}>{item.payer}</span> 先付 <span style={{ marginLeft: '5px', color: '#999' }}>(分擔: {item.unpaid_users})</span></div></div><div style={{ fontWeight: 'bold', fontSize: '18px', color: theme.success, marginRight: '15px' }}>${item.amount}</div><button onClick={() => deleteItem('budget', item.id)} style={{ border: 'none', background: 'transparent', color: '#9CA3AF', padding: '5px' }}>✕</button></div>))}</div>
+              <div style={{ background: '#111', padding: '25px', borderRadius: theme.radius, color: 'white', marginBottom: '50px' }}><h3 style={{ margin: '0 0 15px 0', borderBottom: '1px solid #333', paddingBottom: '10px' }}>📊 結算中心</h3>{transactions.length > 0 ? (<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{transactions.map((t, idx) => (<div key={idx} style={{ fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}><span style={{ marginRight: '10px', color: theme.success }}>💸</span> {t}</div>))}<div style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>* 系統已自動計算最佳轉帳路徑</div></div>) : (<div style={{ color: '#666' }}>目前沒有債務需要結清 👍</div>)}</div>
+            </div>
+          )}
+
+          {/* 航班與住宿 (省略以節省篇幅，功能不變，請複製上面的程式碼即可) */}
           {activeTab === 'flights' && (
              <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>🛫 新增航班</h4>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input placeholder="日期 (4/29)" value={flightDate} onChange={e => setFlightDate(e.target.value)} style={inputStyle} />
-                  <input placeholder="時間 (10:30)" value={flightTime} onChange={e => setFlightTime(e.target.value)} style={inputStyle} />
-                </div>
-                <input placeholder="航空公司" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} style={inputStyle} />
-                <input placeholder="航班代號" value={flightNumber} onChange={e => setFlightNumber(e.target.value)} style={inputStyle} />
+                <div style={{ display: 'flex', gap: '10px' }}><input placeholder="日期" value={flightDate} onChange={e => setFlightDate(e.target.value)} style={inputStyle} /><input placeholder="時間" value={flightTime} onChange={e => setFlightTime(e.target.value)} style={inputStyle} /></div>
+                <input placeholder="航空公司" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} style={inputStyle} /><input placeholder="航班代號" value={flightNumber} onChange={e => setFlightNumber(e.target.value)} style={inputStyle} />
                 <button onClick={addFlight} style={{ width: '100%', marginTop: '10px', background: theme.primary, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增航班</button>
               </div>
-              {flights.map(item => (
-                <div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                    <div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.date} {item.time}</div><div style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.airline}</div><div style={{ color: theme.primary }}>{item.flight_number}</div></div>
-                    <button onClick={() => deleteItem('flights', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button>
-                </div>
-              ))}
+              {flights.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.date} {item.time}</div><div style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.airline}</div><div style={{ color: theme.primary }}>{item.flight_number}</div></div><button onClick={() => deleteItem('flights', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
             </div>
           )}
           {activeTab === 'accommodations' && (
              <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>🏨 新增住宿</h4>
-                <input placeholder="飯店名稱" value={hotelName} onChange={e => setHotelName(e.target.value)} style={inputStyle} />
-                <input placeholder="地址" value={hotelAddress} onChange={e => setHotelAddress(e.target.value)} style={inputStyle} />
+                <input placeholder="飯店名稱" value={hotelName} onChange={e => setHotelName(e.target.value)} style={inputStyle} /><input placeholder="地址" value={hotelAddress} onChange={e => setHotelAddress(e.target.value)} style={inputStyle} />
                 <div style={{ display: 'flex', gap: '10px' }}><input placeholder="入住" value={checkIn} onChange={e => setCheckIn(e.target.value)} style={inputStyle} /><input placeholder="退房" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inputStyle} /></div>
                 <button onClick={addAccommodation} style={{ width: '100%', marginTop: '10px', background: '#F59E0B', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增住宿</button>
               </div>
-              {accommodations.map(item => (
-                <div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                    <div><div style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.name}</div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.address}</div><div style={{ fontSize: '14px', color: '#B45309' }}>📅 {item.check_in} - {item.check_out}</div></div>
-                    <button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button>
-                </div>
-              ))}
+              {accommodations.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.name}</div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.address}</div><div style={{ fontSize: '14px', color: '#B45309' }}>📅 {item.check_in} - {item.check_out}</div></div><button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
             </div>
           )}
 
