@@ -21,7 +21,7 @@ const theme = {
   white: '#FFFFFF',
   danger: '#EF4444',  // 紅色
   success: '#10B981', // 綠色
-  text: '#111111',    // 極深黑
+  text: '#000000',    // 🔥 強制純黑
   shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
   radius: '12px'
 }
@@ -37,7 +37,7 @@ function App() {
   const [flights, setFlights] = useState([])
   const [accommodations, setAccommodations] = useState([])
   const [members, setMembers] = useState([])
-  const [todos, setTodos] = useState([]) // ✅ 檢查清單
+  const [todos, setTodos] = useState([])
   
   // 翻卡狀態
   const [flippedId, setFlippedId] = useState(null)
@@ -105,7 +105,7 @@ function App() {
   // --- 倒數計時邏輯 ---
   function getDaysUntilTrip() {
     const today = new Date()
-    const tripDate = new Date('2026-04-29') // 您的出發日期
+    const tripDate = new Date('2026-04-29')
     const diffTime = tripDate - today
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays > 0 ? diffDays : 0
@@ -131,8 +131,21 @@ function App() {
   const transactions = calculateSettlement()
   const daysUntil = getDaysUntilTrip()
 
-  // 樣式
-  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '16px', color: '#000000', marginBottom: '10px' }
+  // 🔥 樣式修正：強制所有文字與輸入框為黑色
+  const inputStyle = { 
+    width: '100%', 
+    boxSizing: 'border-box', 
+    padding: '12px', 
+    borderRadius: '12px', 
+    border: '1px solid #E5E7EB', 
+    background: '#F9FAFB', 
+    fontSize: '16px', 
+    color: '#000000', // 🔥 強制黑色
+    WebkitTextFillColor: '#000000', // 🔥 iOS Safari 強制黑色
+    opacity: 1, 
+    marginBottom: '10px' 
+  }
+  
   const tabStyle = (isActive) => ({ flex: '0 0 auto', padding: '10px 20px', borderRadius: '20px', border: 'none', background: isActive ? theme.primary : '#F3F4F6', color: isActive ? 'white' : '#6B7280', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px', marginRight: '8px' })
   const cardFaceStyle = { width: '100%', backfaceVisibility: 'hidden', borderRadius: theme.radius, boxSizing: 'border-box', border: '1px solid #eee' }
 
@@ -140,17 +153,15 @@ function App() {
     <div style={{ width: '100vw', minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh', background: '#ffffff' }}>
         
-        {/* Header (升級版：含倒數) */}
+        {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'relative', zIndex: 2 }}>
             <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
             <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
-            {/* 倒數計時器 */}
             <div style={{ marginTop: '15px', display: 'inline-block', background: 'rgba(255,255,255,0.2)', padding: '5px 15px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' }}>
               ⏳ 距離出發還有 {daysUntil} 天
             </div>
           </div>
-          {/* 裝飾圓圈 */}
           <div style={{ position: 'absolute', top: -20, right: -20, width: '100px', height: '100px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }} />
         </div>
 
@@ -172,7 +183,7 @@ function App() {
                 <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率換算 (約 0.9)</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input type="number" placeholder="泰銖 THB" value={thbInput} onChange={e => setThbInput(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-                  <span style={{ fontSize: '20px' }}>≈</span>
+                  <span style={{ fontSize: '20px', color: '#000000' }}>≈</span>
                   <div style={{ flex: 1, fontWeight: 'bold', fontSize: '20px', color: '#166534' }}>
                     {thbInput ? Math.round(thbInput * 0.9 * 10) / 10 : 0} TWD
                   </div>
@@ -190,7 +201,7 @@ function App() {
                   <button onClick={addTodo} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 15px', borderRadius: '12px', fontWeight: 'bold' }}>新增</button>
                 </div>
 
-                {/* 清單列表 */}
+                {/* 清單列表 (🔥 修正文字顏色為黑色) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {todos.map(todo => (
                     <div key={todo.id} style={{ display: 'flex', alignItems: 'center', padding: '10px', background: todo.is_completed ? '#F3F4F6' : 'white', borderRadius: '8px', border: '1px solid #eee', opacity: todo.is_completed ? 0.6 : 1 }}>
@@ -200,7 +211,14 @@ function App() {
                         onChange={() => toggleTodo(todo.id, todo.is_completed)}
                         style={{ width: '20px', height: '20px', marginRight: '10px', cursor: 'pointer' }}
                       />
-                      <span style={{ flex: 1, textDecoration: todo.is_completed ? 'line-through' : 'none', fontSize: '16px' }}>{todo.task}</span>
+                      <span style={{ 
+                        flex: 1, 
+                        textDecoration: todo.is_completed ? 'line-through' : 'none', 
+                        fontSize: '16px',
+                        color: '#000000' // 🔥 強制黑色文字
+                      }}>
+                        {todo.task}
+                      </span>
                       <button onClick={() => deleteItem('todos', todo.id)} style={{ border: 'none', background: 'transparent', color: '#ccc', cursor: 'pointer' }}>✕</button>
                     </div>
                   ))}
@@ -231,7 +249,7 @@ function App() {
                             <span style={{ fontSize: '15px', fontWeight: 'bold', color: theme.primary }}>{plan.time.split(':')[0]}</span>
                             <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{plan.time.split(':')[1]}</span>
                           </div>
-                          <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>{plan.content}{(plan.url || plan.description) && <span style={{ marginLeft: '5px', fontSize: '12px' }}>📝</span>}</div>
+                          <div style={{ flex: 1, color: '#000000', fontSize: '16px', fontWeight: '500' }}>{plan.content}{(plan.url || plan.description) && <span style={{ marginLeft: '5px', fontSize: '12px' }}>📝</span>}</div>
                           <button onClick={(e) => { e.stopPropagation(); deleteItem('plans', plan.id) }} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                         </div>
                         <div onClick={e => e.stopPropagation()} style={{ ...cardFaceStyle, position: isFlipped ? 'relative' : 'absolute', top: 0, left: 0, transform: 'rotateY(180deg)', background: '#F0F9FF', padding: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: `2px solid ${theme.primary}` }}>
@@ -275,7 +293,7 @@ function App() {
                 <div style={{ marginBottom: '15px' }}><label style={{ fontSize: '14px', color: '#666' }}>誰要分擔？</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>{members.map(m => (<button key={m.id} onClick={() => toggleInvolved(m.name)} style={{ padding: '6px 12px', borderRadius: '20px', border: '1px solid', fontSize: '14px', cursor: 'pointer', background: budgetInvolved.includes(m.name) ? theme.primary : 'white', color: budgetInvolved.includes(m.name) ? 'white' : '#666', borderColor: budgetInvolved.includes(m.name) ? theme.primary : '#ddd' }}>{m.name}</button>))}</div></div>
                 <button onClick={addBudget} style={{ width: '100%', background: theme.success, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px' }}>＋ 新增帳目</button>
               </div>
-              <div style={{ marginBottom: '30px' }}>{budgetItems.map(item => (<div key={item.id} style={{ background: 'white', padding: '15px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #F3F4F6', marginBottom: '10px' }}><div style={{ flex: 1 }}><div style={{ fontWeight: 'bold', fontSize: '16px' }}>{item.item}</div><div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}><span style={{ color: theme.primary, fontWeight: 'bold' }}>{item.payer}</span> 先付 <span style={{ marginLeft: '5px', color: '#999' }}>(分擔: {item.unpaid_users})</span></div></div><div style={{ fontWeight: 'bold', fontSize: '18px', color: theme.success, marginRight: '15px' }}>${item.amount}</div><button onClick={() => deleteItem('budget', item.id)} style={{ border: 'none', background: 'transparent', color: '#9CA3AF', padding: '5px' }}>✕</button></div>))}</div>
+              <div style={{ marginBottom: '30px' }}>{budgetItems.map(item => (<div key={item.id} style={{ background: 'white', padding: '15px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #F3F4F6', marginBottom: '10px' }}><div style={{ flex: 1 }}><div style={{ fontWeight: 'bold', fontSize: '16px', color: '#000000' }}>{item.item}</div><div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}><span style={{ color: theme.primary, fontWeight: 'bold' }}>{item.payer}</span> 先付 <span style={{ marginLeft: '5px', color: '#999' }}>(分擔: {item.unpaid_users})</span></div></div><div style={{ fontWeight: 'bold', fontSize: '18px', color: theme.success, marginRight: '15px' }}>${item.amount}</div><button onClick={() => deleteItem('budget', item.id)} style={{ border: 'none', background: 'transparent', color: '#9CA3AF', padding: '5px' }}>✕</button></div>))}</div>
               <div style={{ background: '#111', padding: '25px', borderRadius: theme.radius, color: 'white', marginBottom: '50px' }}><h3 style={{ margin: '0 0 15px 0', borderBottom: '1px solid #333', paddingBottom: '10px' }}>📊 結算中心</h3>{transactions.length > 0 ? (<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{transactions.map((t, idx) => (<div key={idx} style={{ fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}><span style={{ marginRight: '10px', color: theme.success }}>💸</span> {t}</div>))}<div style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>* 系統已自動計算最佳轉帳路徑</div></div>) : (<div style={{ color: '#666' }}>目前沒有債務需要結清 👍</div>)}</div>
             </div>
           )}
@@ -289,7 +307,7 @@ function App() {
                 <input placeholder="航空公司" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} style={inputStyle} /><input placeholder="航班代號" value={flightNumber} onChange={e => setFlightNumber(e.target.value)} style={inputStyle} />
                 <button onClick={addFlight} style={{ width: '100%', marginTop: '10px', background: theme.primary, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增航班</button>
               </div>
-              {flights.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.date} {item.time}</div><div style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.airline}</div><div style={{ color: theme.primary }}>{item.flight_number}</div></div><button onClick={() => deleteItem('flights', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
+              {flights.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.date} {item.time}</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>{item.airline}</div><div style={{ color: theme.primary }}>{item.flight_number}</div></div><button onClick={() => deleteItem('flights', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
             </div>
           )}
           {activeTab === 'accommodations' && (
@@ -300,7 +318,7 @@ function App() {
                 <div style={{ display: 'flex', gap: '10px' }}><input placeholder="入住" value={checkIn} onChange={e => setCheckIn(e.target.value)} style={inputStyle} /><input placeholder="退房" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inputStyle} /></div>
                 <button onClick={addAccommodation} style={{ width: '100%', marginTop: '10px', background: '#F59E0B', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增住宿</button>
               </div>
-              {accommodations.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.name}</div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.address}</div><div style={{ fontSize: '14px', color: '#B45309' }}>📅 {item.check_in} - {item.check_out}</div></div><button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
+              {accommodations.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>{item.name}</div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.address}</div><div style={{ fontSize: '14px', color: '#B45309' }}>📅 {item.check_in} - {item.check_out}</div></div><button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
             </div>
           )}
 
