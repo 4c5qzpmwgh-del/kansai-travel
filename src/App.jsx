@@ -36,28 +36,26 @@ function App() {
   const [flights, setFlights] = useState([])
   const [accommodations, setAccommodations] = useState([])
   
-  // 編輯彈窗狀態 (Modal)
-  const [editingPlan, setEditingPlan] = useState(null) // 當前正在查看/編輯的行程
+  // 🔥 翻卡狀態 (記錄哪一張卡片被翻過來了)
+  const [flippedId, setFlippedId] = useState(null)
+  
+  // 編輯輸入框狀態 (共用，切換卡片時會刷新)
   const [editDesc, setEditDesc] = useState('')
   const [editUrl, setEditUrl] = useState('')
 
-  // 輸入框狀態
+  // 一般輸入框狀態
   const [planInput, setPlanInput] = useState('')
   const [timeInput, setTimeInput] = useState('09:00')
   
-  // 預算輸入
+  // 預算/航班/住宿 輸入框
   const [budgetItem, setBudgetItem] = useState('')
   const [budgetAmount, setBudgetAmount] = useState('')
   const [budgetPayer, setBudgetPayer] = useState('')
   const [budgetUnpaid, setBudgetUnpaid] = useState('')
-
-  // 航班輸入
   const [flightDate, setFlightDate] = useState('')
   const [flightTime, setFlightTime] = useState('')
   const [flightAirline, setFlightAirline] = useState('')
   const [flightNumber, setFlightNumber] = useState('')
-  
-  // 住宿輸入
   const [hotelName, setHotelName] = useState('')
   const [hotelAddress, setHotelAddress] = useState('')
   const [checkIn, setCheckIn] = useState('')
@@ -126,18 +124,24 @@ function App() {
     setHotelName(''); setHotelAddress(''); setCheckIn(''); setCheckOut(''); fetchData()
   }
 
-  // --- 詳細資訊功能 (開啟/儲存) ---
-  function openPlanDetail(plan) {
-    setEditingPlan(plan)
-    setEditDesc(plan.description || '')
-    setEditUrl(plan.url || '')
+  // 🔥 翻卡邏輯
+  function handleFlip(plan) {
+    if (flippedId === plan.id) {
+      // 如果點擊已經翻開的卡片，則翻回去 (關閉)
+      setFlippedId(null)
+    } else {
+      // 翻開新的卡片，並載入資料
+      setFlippedId(plan.id)
+      setEditDesc(plan.description || '')
+      setEditUrl(plan.url || '')
+    }
   }
 
-  async function savePlanDetail() {
-    if (!editingPlan) return
-    await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', editingPlan.id)
-    setEditingPlan(null) // 關閉視窗
-    fetchData() // 刷新資料
+  // 儲存詳細資料 (存在背面)
+  async function savePlanDetail(id) {
+    await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', id)
+    setFlippedId(null) // 儲存後翻回去
+    fetchData()
   }
 
   function openGoogleMapRoute() {
@@ -183,7 +187,7 @@ function App() {
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
 
-          {/* --- 1. 行程表 --- */}
+          {/* --- 1. 行程表 (翻卡特效版) --- */}
           {activeTab === 'schedule' && (
             <div style={{ paddingBottom: '120px' }}>
               <div style={{ display: 'flex', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
@@ -195,42 +199,78 @@ function App() {
                 <button onClick={() => setTotalDays(totalDays + 1)} style={{ border: '1px solid #ddd', background: 'white', color: theme.primary, width: '35px', height: '35px', borderRadius: '50%', flexShrink: 0 }}>+</button>
               </div>
 
-              <button 
-                onClick={openGoogleMapRoute}
-                style={{
-                  width: '100%', padding: '12px', background: '#E0F2FE', color: '#0284C7',
-                  border: '1px dashed #0284C7', borderRadius: '12px', fontWeight: 'bold',
-                  marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                }}
-              >
+              <button onClick={openGoogleMapRoute} style={{ width: '100%', padding: '12px', background: '#E0F2FE', color: '#0284C7', border: '1px dashed #0284C7', borderRadius: '12px', fontWeight: 'bold', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 🗺️ 自動規劃當日路線 (Google Maps)
               </button>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {plans.filter(p => (p.day || 1) === currentDay).map(plan => (
-                  <div 
-                    key={plan.id} 
-                    onClick={() => openPlanDetail(plan)} // 🔥 點擊觸發彈窗
-                    style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #eee', display: 'flex', alignItems: 'center', borderLeft: `4px solid ${theme.primary}`, cursor: 'pointer', transition: 'transform 0.1s' }}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginRight: '16px', minWidth: '45px' }}>
-                      <span style={{ fontSize: '15px', fontWeight: 'bold', color: theme.primary }}>{plan.time.split(':')[0]}</span>
-                      <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{plan.time.split(':')[1]}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {plans.filter(p => (p.day || 1) === currentDay).map(plan => {
+                  const isFlipped = flippedId === plan.id;
+                  return (
+                    // 🔥 翻轉容器
+                    <div key={plan.id} style={{ perspective: '1000px', cursor: 'pointer' }} onClick={() => handleFlip(plan)}>
+                      <div style={{
+                        position: 'relative',
+                        transition: 'transform 0.6s',
+                        transformStyle: 'preserve-3d',
+                        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                        // 技巧：未翻轉時用正面高度，翻轉後用背面高度 (靠內容撐開)
+                        // 這裡使用 flex-column 讓高度自動適應
+                      }}>
+                        
+                        {/* 🌟 正面 (行程內容) */}
+                        <div style={{
+                          // 翻面時隱藏正面，避免高度卡住
+                          position: isFlipped ? 'absolute' : 'relative', 
+                          top: 0, left: 0, width: '100%',
+                          backfaceVisibility: 'hidden',
+                          background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #eee', display: 'flex', alignItems: 'center', borderLeft: `4px solid ${theme.primary}`
+                        }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginRight: '16px', minWidth: '45px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: 'bold', color: theme.primary }}>{plan.time.split(':')[0]}</span>
+                            <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{plan.time.split(':')[1]}</span>
+                          </div>
+                          <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>
+                            {plan.content}
+                            {(plan.url || plan.description) && <span style={{ marginLeft: '5px', fontSize: '12px' }}>📝</span>}
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); deleteItem('plans', plan.id) }} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        </div>
+
+                        {/* 🌟 背面 (編輯表單) */}
+                        <div 
+                          onClick={e => e.stopPropagation()} // 防止點擊輸入框時又翻回去
+                          style={{
+                            // 翻面時顯示背面，並讓它撐開高度
+                            position: isFlipped ? 'relative' : 'absolute',
+                            top: 0, left: 0, width: '100%',
+                            backfaceVisibility: 'hidden',
+                            transform: 'rotateY(180deg)',
+                            background: '#F0F9FF', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: `2px solid ${theme.primary}`
+                          }}
+                        >
+                          <h4 style={{ margin: '0 0 10px 0', color: theme.primary }}>✏️ 編輯詳細資料</h4>
+                          <textarea 
+                            value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                            placeholder="輸入筆記..."
+                            style={{ ...inputStyle, height: '80px', resize: 'none' }}
+                          />
+                          <input 
+                            value={editUrl} onChange={e => setEditUrl(e.target.value)}
+                            placeholder="相關網址 (https://...)"
+                            style={inputStyle}
+                          />
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={() => savePlanDetail(plan.id)} style={{ flex: 1, padding: '10px', background: theme.primary, color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>💾 儲存</button>
+                            {editUrl && <button onClick={() => window.open(editUrl, '_blank')} style={{ flex: 1, padding: '10px', background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>🌏 前往</button>}
+                            <button onClick={() => setFlippedId(null)} style={{ padding: '10px 15px', background: '#ddd', color: '#666', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>↩️</button>
+                          </div>
+                        </div>
+
+                      </div>
                     </div>
-                    <div style={{ flex: 1, color: '#111', fontSize: '16px', fontWeight: '500' }}>
-                        {plan.content}
-                        {/* 如果有連結，顯示一個小圖示提示 */}
-                        {plan.url && <span style={{ marginLeft: '5px', fontSize: '12px' }}>🔗</span>}
-                        {plan.description && <span style={{ marginLeft: '5px', fontSize: '12px' }}>📝</span>}
-                    </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); deleteItem('plans', plan.id) }} // 防止觸發彈窗
-                      style={{ border: 'none', background: '#FEF2F2', color: theme.danger, width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >✕</button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', padding: '15px 20px 25px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10, boxSizing: 'border-box' }}>
@@ -241,7 +281,7 @@ function App() {
             </div>
           )}
 
-          {/* --- 2. 預算表 (維持原樣) --- */}
+          {/* 預算、航班、住宿頁面 (保持不變) */}
           {activeTab === 'budget' && (
              <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '25px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', textAlign: 'center', marginBottom: '20px' }}>
@@ -270,7 +310,6 @@ function App() {
               ))}
             </div>
           )}
-          {/* --- 3. 航班 & 4. 住宿 (維持原樣) --- */}
           {activeTab === 'flights' && (
              <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
@@ -325,62 +364,6 @@ function App() {
           )}
 
         </div>
-
-        {/* 🔥 詳細資訊彈窗 (Modal) */}
-        {editingPlan && (
-          <div style={{ 
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-            background: 'rgba(0,0,0,0.5)', zIndex: 50, 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-          }} onClick={() => setEditingPlan(null)}>
-            <div style={{ 
-              background: 'white', width: '100%', maxWidth: '400px', borderRadius: '20px', padding: '25px', 
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative' 
-            }} onClick={e => e.stopPropagation()}>
-              
-              <h3 style={{ margin: '0 0 15px 0', fontSize: '20px', color: '#111' }}>📍 {editingPlan.content}</h3>
-              
-              <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>📝 景點介紹 / 筆記</p>
-              <textarea 
-                value={editDesc} 
-                onChange={e => setEditDesc(e.target.value)}
-                placeholder="輸入一些筆記..."
-                style={{ ...inputStyle, height: '100px', resize: 'none' }}
-              />
-
-              <p style={{ margin: '10px 0 5px 0', fontWeight: 'bold', fontSize: '14px', color: '#666' }}>🔗 相關網址 (Google Map / 部落格)</p>
-              <input 
-                value={editUrl} 
-                onChange={e => setEditUrl(e.target.value)}
-                placeholder="https://..."
-                style={inputStyle}
-              />
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button 
-                  onClick={savePlanDetail} 
-                  style={{ flex: 1, padding: '12px', background: '#111', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  💾 儲存
-                </button>
-                {editUrl && (
-                  <button 
-                    onClick={() => window.open(editUrl, '_blank')}
-                    style={{ flex: 1, padding: '12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    🌏 前往網頁
-                  </button>
-                )}
-              </div>
-              
-              <button 
-                onClick={() => setEditingPlan(null)}
-                style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999' }}
-              >✕</button>
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   )
