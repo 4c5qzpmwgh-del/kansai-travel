@@ -36,10 +36,10 @@ function App() {
   const [flights, setFlights] = useState([])
   const [accommodations, setAccommodations] = useState([])
   
-  // 🔥 翻卡狀態 (記錄哪一張卡片被翻過來了)
+  // 🔥 翻卡狀態
   const [flippedId, setFlippedId] = useState(null)
   
-  // 編輯輸入框狀態 (共用，切換卡片時會刷新)
+  // 編輯輸入框狀態
   const [editDesc, setEditDesc] = useState('')
   const [editUrl, setEditUrl] = useState('')
 
@@ -127,20 +127,17 @@ function App() {
   // 🔥 翻卡邏輯
   function handleFlip(plan) {
     if (flippedId === plan.id) {
-      // 如果點擊已經翻開的卡片，則翻回去 (關閉)
       setFlippedId(null)
     } else {
-      // 翻開新的卡片，並載入資料
       setFlippedId(plan.id)
       setEditDesc(plan.description || '')
       setEditUrl(plan.url || '')
     }
   }
 
-  // 儲存詳細資料 (存在背面)
   async function savePlanDetail(id) {
     await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', id)
-    setFlippedId(null) // 儲存後翻回去
+    setFlippedId(null)
     fetchData()
   }
 
@@ -167,6 +164,15 @@ function App() {
     fontWeight: 'bold', cursor: 'pointer', fontSize: '15px', marginRight: '8px'
   })
 
+  // 修正後的卡片樣式：強制 border-box
+  const cardFaceStyle = {
+    width: '100%',
+    backfaceVisibility: 'hidden',
+    borderRadius: theme.radius,
+    boxSizing: 'border-box', // 🔥 關鍵修正
+    border: '1px solid #eee'
+  }
+
   return (
     <div style={{ width: '100vw', minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, sans-serif', boxSizing: 'border-box', overflowX: 'hidden' }}>
       <div style={{ maxWidth: '600px', margin: '0 auto', position: 'relative', minHeight: '100vh', background: '#ffffff' }}>
@@ -187,7 +193,7 @@ function App() {
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
 
-          {/* --- 1. 行程表 (翻卡特效版) --- */}
+          {/* --- 1. 行程表 (翻卡修正版) --- */}
           {activeTab === 'schedule' && (
             <div style={{ paddingBottom: '120px' }}>
               <div style={{ display: 'flex', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
@@ -214,17 +220,15 @@ function App() {
                         transition: 'transform 0.6s',
                         transformStyle: 'preserve-3d',
                         transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                        // 技巧：未翻轉時用正面高度，翻轉後用背面高度 (靠內容撐開)
-                        // 這裡使用 flex-column 讓高度自動適應
                       }}>
                         
                         {/* 🌟 正面 (行程內容) */}
                         <div style={{
-                          // 翻面時隱藏正面，避免高度卡住
+                          ...cardFaceStyle,
                           position: isFlipped ? 'absolute' : 'relative', 
-                          top: 0, left: 0, width: '100%',
-                          backfaceVisibility: 'hidden',
-                          background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: '1px solid #eee', display: 'flex', alignItems: 'center', borderLeft: `4px solid ${theme.primary}`
+                          top: 0, left: 0,
+                          background: 'white', padding: '16px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                          display: 'flex', alignItems: 'center', borderLeft: `4px solid ${theme.primary}`
                         }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginRight: '16px', minWidth: '45px' }}>
                             <span style={{ fontSize: '15px', fontWeight: 'bold', color: theme.primary }}>{plan.time.split(':')[0]}</span>
@@ -239,31 +243,32 @@ function App() {
 
                         {/* 🌟 背面 (編輯表單) */}
                         <div 
-                          onClick={e => e.stopPropagation()} // 防止點擊輸入框時又翻回去
+                          onClick={e => e.stopPropagation()} 
                           style={{
-                            // 翻面時顯示背面，並讓它撐開高度
+                            ...cardFaceStyle,
                             position: isFlipped ? 'relative' : 'absolute',
-                            top: 0, left: 0, width: '100%',
-                            backfaceVisibility: 'hidden',
+                            top: 0, left: 0,
                             transform: 'rotateY(180deg)',
-                            background: '#F0F9FF', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 10px rgba(0,0,0,0.1)', border: `2px solid ${theme.primary}`
+                            background: '#F0F9FF', padding: '16px', // 減少 padding 避免爆版
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.1)', 
+                            border: `2px solid ${theme.primary}`
                           }}
                         >
-                          <h4 style={{ margin: '0 0 10px 0', color: theme.primary }}>✏️ 編輯詳細資料</h4>
+                          <div style={{ marginBottom: '10px', fontSize: '14px', fontWeight: 'bold', color: theme.primary }}>✏️ 編輯詳細資料</div>
                           <textarea 
                             value={editDesc} onChange={e => setEditDesc(e.target.value)}
                             placeholder="輸入筆記..."
-                            style={{ ...inputStyle, height: '80px', resize: 'none' }}
+                            style={{ ...inputStyle, height: '70px', resize: 'none' }}
                           />
                           <input 
                             value={editUrl} onChange={e => setEditUrl(e.target.value)}
-                            placeholder="相關網址 (https://...)"
+                            placeholder="相關網址..."
                             style={inputStyle}
                           />
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => savePlanDetail(plan.id)} style={{ flex: 1, padding: '10px', background: theme.primary, color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>💾 儲存</button>
-                            {editUrl && <button onClick={() => window.open(editUrl, '_blank')} style={{ flex: 1, padding: '10px', background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>🌏 前往</button>}
-                            <button onClick={() => setFlippedId(null)} style={{ padding: '10px 15px', background: '#ddd', color: '#666', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>↩️</button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={() => savePlanDetail(plan.id)} style={{ flex: 1, padding: '10px', background: theme.primary, color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>儲存</button>
+                            {editUrl && <button onClick={() => window.open(editUrl, '_blank')} style={{ flex: 1, padding: '10px', background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>前往</button>}
+                            <button onClick={() => setFlippedId(null)} style={{ padding: '10px 15px', background: '#ddd', color: '#666', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>↩</button>
                           </div>
                         </div>
 
@@ -273,6 +278,7 @@ function App() {
                 })}
               </div>
 
+              {/* 底部輸入框 */}
               <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', padding: '15px 20px 25px', boxShadow: '0 -4px 15px rgba(0,0,0,0.08)', display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto', zIndex: 10, boxSizing: 'border-box' }}>
                 <select value={timeInput} onChange={e => setTimeInput(e.target.value)} style={{ ...inputStyle, width: '90px', marginBottom: 0 }}>{timeOptions.map(t => <option key={t} value={t}>{t}</option>)}</select>
                 <input value={planInput} onChange={e => setPlanInput(e.target.value)} placeholder="輸入地點 (如: 淺草寺)" style={{ ...inputStyle, marginBottom: 0 }} />
