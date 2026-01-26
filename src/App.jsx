@@ -7,6 +7,18 @@ const supabaseKey = 'sb_publishable_EHxsxvA9fn8Gq8LMMndhQw_68lr1qXv'
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+// --- 靜態資料：泰語救命小卡 ---
+const thaiPhrases = [
+  { text: '你好', thai: 'Sawasdee Krub', speak: 'Sawasdee Krub', icon: '🙏' },
+  { text: '謝謝', thai: 'Khop Khun Krub', speak: 'Khop Khun Krub', icon: '😊' },
+  { text: '多少錢?', thai: 'Tao Rai?', speak: 'Tao Rai', icon: '💰' },
+  { text: '太貴了', thai: 'Paeng Mak', speak: 'Paeng Mak', icon: '💸' },
+  { text: '不要香菜', thai: 'Mai Sai Pak Chi', speak: 'Mai Sai Pak Chi', icon: '🌿' },
+  { text: '不辣', thai: 'Mai Phet', speak: 'Mai Phet', icon: '🌶️' },
+  { text: '廁所在哪?', thai: 'Hong Nam Yu Nai?', speak: 'Hong Nam Yu Nai', icon: '🚽' },
+  { text: '請開跳錶', thai: 'Meter Plz', speak: 'Meter Please', icon: '🚖' },
+]
+
 // 產生時間選項
 const timeOptions = []
 for (let i = 0; i < 24; i++) {
@@ -97,12 +109,10 @@ function App() {
     if (t) setTodos(t)
   }
 
-  // --- 通用刪除 ---
   async function deleteItem(table, id) {
     if (confirm('確定要刪除嗎？')) { await supabase.from(table).delete().eq('id', id); fetchData() }
   }
 
-  // --- 倒數計時邏輯 ---
   function getDaysUntilTrip() {
     const today = new Date()
     const tripDate = new Date('2026-04-29')
@@ -111,7 +121,15 @@ function App() {
     return diffDays > 0 ? diffDays : 0
   }
 
-  // --- 功能函數 ---
+  // 🔥 語音朗讀功能
+  function speak(text) {
+    const utterance = new SpeechSynthesisUtterance(text)
+    // 嘗試設定為泰語，如果系統不支援會退回預設(通常是英文，但也夠用了)
+    utterance.lang = 'th-TH' 
+    utterance.rate = 0.8 // 稍微慢一點
+    window.speechSynthesis.speak(utterance)
+  }
+
   async function addMember() { if (!newMemberName) return; const { error } = await supabase.from('members').insert([{ name: newMemberName }]); if (error) alert('新增失敗'); else { setNewMemberName(''); fetchData() } }
   async function addBudget() { if (!budgetItem || !budgetAmount || !budgetPayer) return; const finalInvolved = budgetInvolved.length > 0 ? budgetInvolved : members.map(m => m.name); await supabase.from('budget').insert([{ item: budgetItem, amount: Number(budgetAmount), payer: budgetPayer, unpaid_users: finalInvolved.join(',') }]); setBudgetItem(''); setBudgetAmount(''); setBudgetInvolved([]); fetchData() }
   function toggleInvolved(name) { if (budgetInvolved.includes(name)) setBudgetInvolved(budgetInvolved.filter(n => n !== name)); else setBudgetInvolved([...budgetInvolved, name]) }
@@ -123,7 +141,6 @@ function App() {
   async function savePlanDetail(id) { await supabase.from('plans').update({ description: editDesc, url: editUrl }).eq('id', id); setFlippedId(null); fetchData() }
   function openGoogleMapRoute() { const todaysPlans = plans.filter(p => (p.day || 1) === currentDay); if (todaysPlans.length === 0) { alert('無行程'); return } const destinations = todaysPlans.map(p => p.content.trim()).join('/'); window.open(`https://www.google.com/maps/dir/${destinations}`, '_blank') }
   
-  // ✅ 待辦事項功能
   async function addTodo() { if (!todoInput) return; await supabase.from('todos').insert([{ task: todoInput }]); setTodoInput(''); fetchData() }
   async function toggleTodo(id, currentStatus) { await supabase.from('todos').update({ is_completed: !currentStatus }).eq('id', id); fetchData() }
 
@@ -131,21 +148,7 @@ function App() {
   const transactions = calculateSettlement()
   const daysUntil = getDaysUntilTrip()
 
-  // 🔥 樣式修正：強制所有文字與輸入框為黑色
-  const inputStyle = { 
-    width: '100%', 
-    boxSizing: 'border-box', 
-    padding: '12px', 
-    borderRadius: '12px', 
-    border: '1px solid #E5E7EB', 
-    background: '#F9FAFB', 
-    fontSize: '16px', 
-    color: '#000000', // 🔥 強制黑色
-    WebkitTextFillColor: '#000000', // 🔥 iOS Safari 強制黑色
-    opacity: 1, 
-    marginBottom: '10px' 
-  }
-  
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: '16px', color: '#000000', WebkitTextFillColor: '#000000', opacity: 1, marginBottom: '10px' }
   const tabStyle = (isActive) => ({ flex: '0 0 auto', padding: '10px 20px', borderRadius: '20px', border: 'none', background: isActive ? theme.primary : '#F3F4F6', color: isActive ? 'white' : '#6B7280', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px', marginRight: '8px' })
   const cardFaceStyle = { width: '100%', backfaceVisibility: 'hidden', borderRadius: theme.radius, boxSizing: 'border-box', border: '1px solid #eee' }
 
@@ -156,7 +159,7 @@ function App() {
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, #3B82F6 100%)`, padding: '40px 20px 60px', color: 'white', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK Travel GJ Edition</h1>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800' }}>✈️ BKK 曼谷行</h1>
             <p style={{ margin: '5px 0 0', opacity: 0.9 }}>2026.04.29 - 05.03</p>
             <div style={{ marginTop: '15px', display: 'inline-block', background: 'rgba(255,255,255,0.2)', padding: '5px 15px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' }}>
               ⏳ 距離出發還有 {daysUntil} 天
@@ -174,51 +177,54 @@ function App() {
             <button onClick={() => setActiveTab('accommodations')} style={tabStyle(activeTab === 'accommodations')}>🏨 住宿</button>
           </div>
 
-          {/* --- ✅ 準備 (Checklist & Tools) --- */}
+          {/* --- ✅ 準備 (Checklist & Thai Tools) --- */}
           {activeTab === 'todos' && (
             <div style={{ paddingBottom: '40px' }}>
               
+              {/* 🔥 泰語救命小卡區塊 */}
+              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '20px' }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>🇹🇭 泰語救命小卡 (點擊發音)</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {thaiPhrases.map((p, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={() => speak(p.speak)}
+                      style={{ 
+                        padding: '15px 10px', borderRadius: '12px', border: `1px solid #E5E7EB`, 
+                        background: '#F9FAFB', cursor: 'pointer', textAlign: 'center',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px'
+                      }}
+                    >
+                      <span style={{ fontSize: '24px' }}>{p.icon}</span>
+                      <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#111' }}>{p.text}</span>
+                      <span style={{ fontSize: '12px', color: '#666' }}>{p.thai}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 匯率小工具 */}
               <div style={{ background: '#F0FDF4', padding: '20px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.success}` }}>
                 <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率換算 (約 0.9)</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input type="number" placeholder="泰銖 THB" value={thbInput} onChange={e => setThbInput(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
                   <span style={{ fontSize: '20px', color: '#000000' }}>≈</span>
-                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '20px', color: '#166534' }}>
-                    {thbInput ? Math.round(thbInput * 0.9 * 10) / 10 : 0} TWD
-                  </div>
+                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '20px', color: '#166534' }}>{thbInput ? Math.round(thbInput * 0.9 * 10) / 10 : 0} TWD</div>
                 </div>
-                <div style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>* 僅供快速參考，實際請依換匯匯率</div>
               </div>
 
               {/* 檢查清單 */}
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 行前檢查清單 (共同協作)</h4>
-                
-                {/* 新增項目 */}
+                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 行前檢查清單</h4>
                 <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
                   <input value={todoInput} onChange={e => setTodoInput(e.target.value)} placeholder="還需要帶什麼？" style={{ ...inputStyle, marginBottom: 0 }} />
                   <button onClick={addTodo} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 15px', borderRadius: '12px', fontWeight: 'bold' }}>新增</button>
                 </div>
-
-                {/* 清單列表 (🔥 修正文字顏色為黑色) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {todos.map(todo => (
                     <div key={todo.id} style={{ display: 'flex', alignItems: 'center', padding: '10px', background: todo.is_completed ? '#F3F4F6' : 'white', borderRadius: '8px', border: '1px solid #eee', opacity: todo.is_completed ? 0.6 : 1 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={todo.is_completed} 
-                        onChange={() => toggleTodo(todo.id, todo.is_completed)}
-                        style={{ width: '20px', height: '20px', marginRight: '10px', cursor: 'pointer' }}
-                      />
-                      <span style={{ 
-                        flex: 1, 
-                        textDecoration: todo.is_completed ? 'line-through' : 'none', 
-                        fontSize: '16px',
-                        color: '#000000' // 🔥 強制黑色文字
-                      }}>
-                        {todo.task}
-                      </span>
+                      <input type="checkbox" checked={todo.is_completed} onChange={() => toggleTodo(todo.id, todo.is_completed)} style={{ width: '20px', height: '20px', marginRight: '10px', cursor: 'pointer' }} />
+                      <span style={{ flex: 1, textDecoration: todo.is_completed ? 'line-through' : 'none', fontSize: '16px', color: '#000000' }}>{todo.task}</span>
                       <button onClick={() => deleteItem('todos', todo.id)} style={{ border: 'none', background: 'transparent', color: '#ccc', cursor: 'pointer' }}>✕</button>
                     </div>
                   ))}
@@ -228,7 +234,7 @@ function App() {
             </div>
           )}
 
-          {/* --- 行程表 --- */}
+          {/* 其他分頁內容 (維持原樣) */}
           {activeTab === 'schedule' && (
             <div style={{ paddingBottom: '120px' }}>
               <div style={{ display: 'flex', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
@@ -274,8 +280,6 @@ function App() {
               </div>
             </div>
           )}
-
-          {/* 預算頁面 (功能不變) */}
           {activeTab === 'budget' && (
              <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: '#F0F9FF', padding: '15px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.primary}` }}>
@@ -297,8 +301,6 @@ function App() {
               <div style={{ background: '#111', padding: '25px', borderRadius: theme.radius, color: 'white', marginBottom: '50px' }}><h3 style={{ margin: '0 0 15px 0', borderBottom: '1px solid #333', paddingBottom: '10px' }}>📊 結算中心</h3>{transactions.length > 0 ? (<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>{transactions.map((t, idx) => (<div key={idx} style={{ fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}><span style={{ marginRight: '10px', color: theme.success }}>💸</span> {t}</div>))}<div style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>* 系統已自動計算最佳轉帳路徑</div></div>) : (<div style={{ color: '#666' }}>目前沒有債務需要結清 👍</div>)}</div>
             </div>
           )}
-
-          {/* 航班與住宿 (省略以節省篇幅，功能不變，請複製上面的程式碼即可) */}
           {activeTab === 'flights' && (
              <div style={{ paddingBottom: '40px' }}>
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee', marginBottom: '25px' }}>
@@ -307,7 +309,7 @@ function App() {
                 <input placeholder="航空公司" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} style={inputStyle} /><input placeholder="航班代號" value={flightNumber} onChange={e => setFlightNumber(e.target.value)} style={inputStyle} />
                 <button onClick={addFlight} style={{ width: '100%', marginTop: '10px', background: theme.primary, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增航班</button>
               </div>
-              {flights.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.date} {item.time}</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>{item.airline}</div><div style={{ color: theme.primary }}>{item.flight_number}</div></div><button onClick={() => deleteItem('flights', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
+              {flights.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid ${theme.primary}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.date} {item.time}</div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000000' }}>{item.airline}</div><div style={{ color: theme.primary }}>{item.flight_number}</div></div><button onClick={() => deleteItem('flights', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
             </div>
           )}
           {activeTab === 'accommodations' && (
@@ -318,7 +320,7 @@ function App() {
                 <div style={{ display: 'flex', gap: '10px' }}><input placeholder="入住" value={checkIn} onChange={e => setCheckIn(e.target.value)} style={inputStyle} /><input placeholder="退房" value={checkOut} onChange={e => setCheckOut(e.target.value)} style={inputStyle} /></div>
                 <button onClick={addAccommodation} style={{ width: '100%', marginTop: '10px', background: '#F59E0B', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold' }}>＋ 新增住宿</button>
               </div>
-              {accommodations.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>{item.name}</div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.address}</div><div style={{ fontSize: '14px', color: '#B45309' }}>📅 {item.check_in} - {item.check_out}</div></div><button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
+              {accommodations.map(item => (<div key={item.id} style={{ background: 'white', padding: '16px', borderRadius: theme.radius, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', borderLeft: `4px solid #F59E0B`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}><div><div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000000' }}>{item.name}</div><div style={{ fontSize: '14px', color: '#6B7280' }}>{item.address}</div><div style={{ fontSize: '14px', color: '#B45309' }}>📅 {item.check_in} - {item.check_out}</div></div><button onClick={() => deleteItem('accommodations', item.id)} style={{ border: 'none', background: '#FEF2F2', color: theme.danger, borderRadius: '8px', padding: '5px 10px' }}>刪除</button></div>))}
             </div>
           )}
 
