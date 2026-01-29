@@ -253,11 +253,11 @@ function App() {
               </div>
 
               <div style={{ background: '#F0FDF4', padding: '20px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.success}` }}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率換算 (約 0.9)</h4>
+                <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率換算 (約 1.02)</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input type="number" placeholder="泰銖 THB" value={thbInput} onChange={e => setThbInput(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
                   <span style={{ fontSize: '20px', color: '#000000' }}>≈</span>
-                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '20px', color: '#166534' }}>{thbInput ? Math.round(thbInput * 0.9 * 10) / 10 : 0} TWD</div>
+                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '20px', color: '#166534' }}>{thbInput ? Math.round(thbInput * 1.02 * 10) / 10 : 0} TWD</div>
                 </div>
               </div>
 
