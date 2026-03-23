@@ -1,7 +1,3 @@
-sb_publishable_9vKP8CFIjlf5bX2jbDtKpw_s7V4lACX
-
-https://jzodbtfwhpxstxkgophz.supabase.co
-
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
