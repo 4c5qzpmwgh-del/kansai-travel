@@ -152,6 +152,7 @@ function App() {
           <div style={{ position: 'relative', zIndex: 2 }}>
             <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '900', letterSpacing: '1px' }}>🌸 關西之旅</h1>
             <p style={{ margin: '8px 0 0', opacity: 0.9, fontSize: '16px' }}>大阪 ✕ 京都 ✕ 奈良</p>
+            <p style={{ margin: '8px 0 0', opacity: 0.9, fontSize: '16px' }}>31,Aug - 4,Sep</p>
           </div>
           <div style={{ position: 'absolute', top: -30, right: -20, fontSize: '120px', opacity: 0.1 }}>🗻</div>
         </div>
