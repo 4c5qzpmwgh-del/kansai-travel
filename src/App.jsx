@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
+// ⚠️⚠️⚠️ 請換成您「全新 Kansai 專案」的網址與 Key ⚠️⚠️⚠️
 const supabaseUrl = 'https://jzodbtfwhpxstxkgophz.supabase.co'
 const supabaseKey = 'sb_publishable_9vKP8CFIjlf5bX2jbDtKpw_s7V4lACX'
 
@@ -29,15 +30,16 @@ const emergencyContacts = [
 const timeOptions = ['待安排']
 for (let i = 0; i < 24; i++) {
   const hour = i.toString().padStart(2, '0')
-  timeOptions.push(`${hour}:00`); timeOptions.push(`${hour}:30`)
+  timeOptions.push(`${hour}:00`)
+  timeOptions.push(`${hour}:30`)
 }
 
 // --- 樣式設定 (櫻花粉與抹茶綠) ---
 const theme = {
-  primary: '#F43F5E', // 櫻花粉
-  secondary: '#10B981', // 抹茶綠
+  primary: '#F43F5E',
+  secondary: '#10B981',
   danger: '#E11D48',
-  bg: '#FFF1F2', // 淡淡的粉底色
+  bg: '#FFF1F2',
   text: '#111111',
   shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
   radius: '16px'
@@ -58,10 +60,10 @@ function App() {
   const [flippedId, setFlippedId] = useState(null)
   const [editDesc, setEditDesc] = useState('')
   const [editUrl, setEditUrl] = useState('')
-  const [editTime, setEditTime] = useState('') // 🔥 新增：在背面也能改時間
+  const [editTime, setEditTime] = useState('')
 
   const [planInput, setPlanInput] = useState('')
-  const [timeInput, setTimeInput] = useState('待安排') // 🔥 預設改為「待安排」
+  const [timeInput, setTimeInput] = useState('待安排')
   
   const [budgetItem, setBudgetItem] = useState('')
   const [budgetAmount, setBudgetAmount] = useState('')
@@ -136,7 +138,7 @@ function App() {
       setFlippedId(plan.id); 
       setEditDesc(plan.description || ''); 
       setEditUrl(plan.url || '');
-      setEditTime(plan.time || '待安排'); // 🔥 讀取當前時間
+      setEditTime(plan.time || '待安排'); 
     } 
   }
   async function savePlanDetail(id) { await supabase.from('plans').update({ description: editDesc, url: editUrl, time: editTime }).eq('id', id); setFlippedId(null); fetchData() }
@@ -202,69 +204,5 @@ function App() {
           {activeTab === 'todos' && (
             <div style={{ paddingBottom: '40px' }}>
               
-              {/* 日語小卡 */}
               <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: theme.shadow, border: '1px solid #eee', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#374151', display: 'flex', alignItems: 'center', gap: '8px' }}>🇯P 日語救命小卡 <span>(點擊發音)</span></h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  {japanPhrases.map((p, idx) => (
-                    <button key={idx} onClick={() => speak(p.speak)} style={{ padding: '15px 10px', borderRadius: '12px', border: `1px solid #fecdd3`, background: '#fff0f2', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(244,63,94,0.05)' }}>
-                      <span style={{ fontSize: '24px' }}>{p.icon}</span>
-                      <span style={{ fontWeight: 'bold', fontSize: '16px', color: theme.danger }}>{p.text}</span>
-                      <span style={{ fontSize: '12px', color: '#666' }}>{p.kana}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 匯率計算機 (日幣) */}
-              <div style={{ background: '#F0FDF4', padding: '20px', borderRadius: theme.radius, marginBottom: '20px', border: `1px solid ${theme.secondary}` }}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#166534' }}>💱 匯率快速換算 (約 x0.21)</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input type="number" placeholder="日幣 JPY" value={jpyInput} onChange={e => setJpyInput(e.target.value)} style={{ ...inputStyle, marginBottom: 0, flex: 1, border: '1px solid #bbf7d0' }} />
-                  <span style={{ fontSize: '20px', color: '#000' }}>≈</span>
-                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '24px', color: '#166534' }}>{jpyInput ? Math.round(jpyInput * 0.21) : 0} TWD</div>
-                </div>
-              </div>
-
-              {/* 檢查清單 */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: theme.radius, boxShadow: theme.shadow, border: '1px solid #eee' }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>📝 赴日檢查清單</h4>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
-                  <input value={todoInput} onChange={e => setTodoInput(e.target.value)} placeholder="新增事項..." style={{ ...inputStyle, marginBottom: 0 }} />
-                  <button onClick={addTodo} style={{ background: theme.primary, color: 'white', border: 'none', padding: '0 20px', borderRadius: theme.radius, fontWeight: 'bold' }}>新增</button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {todos.map(todo => (
-                    <div key={todo.id} style={{ display: 'flex', alignItems: 'center', padding: '12px', background: todo.is_completed ? '#F3F4F6' : 'white', borderRadius: '10px', border: '1px solid #eee', opacity: todo.is_completed ? 0.5 : 1 }}>
-                      <input type="checkbox" checked={todo.is_completed} onChange={() => toggleTodo(todo.id, todo.is_completed)} style={{ width: '22px', height: '22px', marginRight: '12px', accentColor: theme.primary }} />
-                      <span style={{ flex: 1, textDecoration: todo.is_completed ? 'line-through' : 'none', fontSize: '16px', color: '#000', fontWeight: '500' }}>{todo.task}</span>
-                      <button onClick={() => deleteItem('todos', todo.id)} style={{ border: 'none', background: 'transparent', color: '#ccc', fontSize: '18px' }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* --- 行程表 --- */}
-          {activeTab === 'schedule' && (
-            <div style={{ paddingBottom: '120px' }}>
-              <div style={{ display: 'flex', overflowX: 'auto', paddingBottom: '15px', marginBottom: '10px', scrollbarWidth: 'none' }}>
-                {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => (
-                  <button key={day} onClick={() => setCurrentDay(day)} style={{ border: 'none', background: currentDay === day ? theme.primary : '#fff', color: currentDay === day ? 'white' : '#4B5563', padding: '10px 20px', borderRadius: '25px', marginRight: '10px', fontWeight: 'bold', flexShrink: 0, boxShadow: currentDay === day ? '0 4px 10px rgba(244,63,94,0.3)' : '0 2px 5px rgba(0,0,0,0.05)', border: currentDay !== day ? '1px solid #eee' : 'none' }}>Day {day}</button>
-                ))}
-                <button onClick={() => setTotalDays(totalDays + 1)} style={{ border: '1px dashed #ccc', background: 'white', color: '#666', width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0 }}>+</button>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <button onClick={openGoogleMapRoute} style={{ flex: 2, padding: '14px', background: '#FFF1F2', color: theme.danger, border: `1px dashed ${theme.danger}`, borderRadius: theme.radius, fontWeight: 'bold', cursor: 'pointer' }}>🗺️ 自動規劃路線</button>
-                <button onClick={copyScheduleToClipboard} style={{ flex: 1, padding: '14px', background: '#F3F4F6', color: '#333', border: '1px solid #ddd', borderRadius: theme.radius, fontWeight: 'bold', cursor: 'pointer' }}>📋 複製</button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {plans.filter(p => (p.day || 1) === currentDay).map(plan => {
-                  const isFlipped = flippedId === plan.id;
-                  const planTime = plan.time || '待安排';
-                  return (
-                    <div key={plan.id} style={{ perspective: '1000px', cursor: 'pointer' }} onClick={() => handleFlip(plan)}>
-                      <div style={{ position: 'relative', transition: 'transform 0.6s cubic-bezier(0.4,
+                <h4 style={{ margin: '0 0 15px 0', color: '#374151', display: 'flex', alignItems: 'center', gap: '8px' }}>🇯P 日語救命小卡 <span>(點擊發音
